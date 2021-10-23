@@ -1,0 +1,100 @@
+version: '3.7'
+
+services:
+  postgresdb:
+    container_name: postgres-core
+    image: postgres
+    restart: on-failure
+#    restart: always
+    env_file:
+      - ./env/db.env
+    ports:
+      - "1436:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  clintonew:
+    container_name: clinto-new
+    build:
+      context: .
+    env_file:
+      - ./env/fastapi.env
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8000"
+    restart: always
+    depends_on:
+      - postgresdb
+      - pgadminclinto
+      - mongodb
+#    command: ./start-reload.sh
+    # tty: true
+  pgadminclinto:
+    container_name: pgadmin-clinto
+    image: dpage/pgadmin4
+    env_file:
+      - ./env/pgadmin.env
+    ports:
+      - "5057:80"
+    depends_on:
+      - postgresdb
+    # restart: always
+  mongodb:
+    container_name: mongo-fastapi
+    image: mongo
+    restart: always
+    volumes: 
+      - mongodata:/data/db
+    ports:
+      - "27016:27017"
+    env_file:
+      - ./env/mongo.env
+  mongo-express:
+    container_name: mongo-expfast
+    image: mongo-express
+    restart: always
+    ports:
+      - 8083:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongodb:27017/
+    depends_on: 
+      - mongodb
+  redis:
+    container_name: clinto-redis
+    image: redis:6.2-alpine
+  celery:
+    container_name: clinto-celery
+    build:
+      context: .
+    command: celery -A src.apps.celery.celerymain.celery_app worker --loglevel=info
+    env_file:
+      - ./env/fastapi.env
+    volumes:
+      - .:/app
+    depends_on:
+      - clintonew
+      - redis
+  celerybeat:
+    container_name: clinto-celery-beat
+    build:
+      context: .
+    command: celery -A src.apps.celery.celerymain.celery_app beat -l info
+    env_file:
+      - ./env/fastapi.env
+    volumes:
+      - .:/app
+    depends_on:
+      - clintonew
+      - celery
+      - redis
+
+
+
+volumes:
+  pgdata:
+    external: true
+  mongodata:
+    external: true

@@ -1,0 +1,32 @@
+sudo docker exec -it fastapi-core aerich init -t src.config.tortoise_conf.TORTOISE_ORM
+sudo docker exec -it fastapi-core aerich init-db
+sudo docker exec -it fastapi-core aerich migrate
+sudo docker exec -it fastapi-core aerich upgrade
+
+
+
+
+
+
+
+
+
+
+
+$$$$$$$$$$$$$$$$$$$$$$$$$DBCOMMANDS
+
+> profile =await Profile.get(id=5).fetch_related('username')
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: 'QuerySet' object has no attribute 'fetch_related'
+
+'QuerySet' object has no attribute 'fetch_related'
+>>> profile =await Profile.get(id=5)
+>>> m=await profile.fetch_related('username')
+>>> m.username.first_name
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+AttributeError: 'NoneType' object has no attribute 'username'
+
+'NoneType' object has no attribute 'username'
+>>> await profile.fetch_related('username')
