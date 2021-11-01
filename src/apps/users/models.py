@@ -27,6 +27,13 @@ class RazorPayPlans(str, Enum):
     Quarterly = "Quarterly"
     Yearly = "Yearly"
     Halfly = "Halfly"
+    Lab = "Lab"
+class Sex(str, Enum):
+    Male = "Male"
+    Female = "Female"
+    TransGender = "TransGender"
+    Others = "Others"
+    Dog = "Dog"
     
 
 class Inventory(models.Model):
@@ -66,12 +73,14 @@ class User(models.Model):
     )
     mobile = fields.CharField(max_length=15,null=True,blank=True)
     roles: Roles = fields.CharEnumField(Roles, default=Roles.Patient)
+    sex: Sex = fields.CharEnumField(Sex, default=Sex.Male)
     password = fields.CharField(max_length=100)
     first_name = fields.CharField(max_length=100,default="")
     last_name = fields.CharField(max_length=100, null=True,default="")
     city = fields.CharField(max_length=800, null=True,default="")
     state = fields.CharField(max_length=800, null=True,default="")
     country = fields.CharField(max_length=800, null=True,default="")
+    pincode = fields.CharField(max_length=800, null=True,default="")
     date_of_birth = fields.DateField(default=datetime.date.today())
     date_join = fields.DatetimeField(auto_now_add=True)
     address = fields.TextField(max_length=3000, null=True, default="")

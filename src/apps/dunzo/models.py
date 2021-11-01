@@ -126,8 +126,6 @@ class DunzoOrder(models.Model):
     current_response = fields.JSONField(null=True)
     task_id = fields.CharField(max_length=300,null=True)
     refund_id = fields.CharField(max_length=500,null=True)
-    medical_store: fields.ForeignKeyRelation[Clinic] = fields.ForeignKeyField(
-        "models.Clinic", related_name="medicaldunzoorders", null=True, blank=True)
     user: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
         "models.User", related_name="userdunzoorders")
     task_id = fields.CharField(max_length=500, null=True, blank=True)
@@ -149,8 +147,8 @@ class DunzoOrder(models.Model):
         DunzoState, default=DunzoState.PENDING)
     payment_method: DunzoPayments = fields.CharEnumField(
         DunzoPayments, default=DunzoPayments.DUNZO_CREDIT)
-    main_order: fields.ForeignKeyRelation[CreateUserOrder] = fields.ForeignKeyField(
-        "models.CreateUserOrder", related_name="createuserorders", null=True, blank=True)
+    medical_order: fields.ForeignKeyRelation[MedicalAccepted] = fields.ForeignKeyField(
+        "models.MedicalAccepted", related_name="MedicalAccepted", null=True, blank=True)
 
 
 

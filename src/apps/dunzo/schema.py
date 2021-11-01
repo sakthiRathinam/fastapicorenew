@@ -22,3 +22,9 @@ class DunzoOrderSchema(BaseModel):
     lang:str
 
 
+class DunzoTask(BaseModel):
+    dunzo_order : int
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+    

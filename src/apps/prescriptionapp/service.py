@@ -36,12 +36,7 @@ class PrescriptionMedicines(BaseService):
 class AppointmentViewSet(BaseService):
     model = Appointments
     get_schema = GET_Appointments
-    async def limited_data(self, **kwargs) -> Optional[ModelType]:
-        if 'limit' and 'offset' in kwargs:
-            toReturn = await self.model.all().offset(kwargs['offset']).limit(kwargs['limit'])
-        if 'status' in kwargs:
-            toReturn = toReturn.filter(status=kwargs['status'])
-        return toReturn
+    
 
 class SlotViewSet(BaseService):
     model = AppointmentSlots

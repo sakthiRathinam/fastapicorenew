@@ -8,6 +8,7 @@ GET_MedicalAccepted = pydantic_model_creator(
     MedicalAccepted, name="MedicalAccepted")
 CREATE_MedicalAccepted = pydantic_model_creator(
     MedicalAccepted, name="MedicalAccepted")
+
 # Create_MonthlyPlans = pydantic_model_creator(
 #     MonthlyPlans, name="craetemonthlyplans", exclude=("id", "created", "updated"))
 # GET_plans = pydantic_model_creator(

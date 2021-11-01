@@ -4,7 +4,8 @@ from typing import List, Optional
 from fastapi import UploadFile,File
 from datetime import date, datetime, time, timedelta
 from .pydanticmodels import Create_PresMedicines, Create_Timings
-
+from .models import AppointmentStatus
+from src.apps.users.models import Sex
 class AddDoctor(BaseModel):
     clinic: int
     doctor: int
@@ -100,3 +101,33 @@ class BulkSlot(BaseModel):
     Sunday: List[SlotDict]
     clinic_id: int
     doctor_id: int
+    
+class PatientCreation(BaseModel):
+    username:str
+    mobile:str
+    first_name:str
+    sex:str
+    last_name:Optional[str] = None
+    dob: date
+    
+class AppointmentCreation(BaseModel):
+    user_id:Optional[int] = None
+    user_create:Optional[PatientCreation] = None
+    requested_date: Optional[date]
+    accepted_date: Optional[date]
+    status: Optional[AppointmentStatus] = AppointmentStatus.Pending
+    accepted_slot_id : Optional[int]
+    requested_slot_id: Optional[int]
+    doctor_id:Optional[int]
+    clinic_id:int
+    reason:str
+class EditAppointment(BaseModel):
+    user_id:Optional[int] = None
+    requested_date: Optional[date] = None
+    accepted_date: Optional[date] = None
+    status: Optional[AppointmentStatus] = AppointmentStatus.Pending
+    accepted_slot_id : Optional[int] = None
+    requested_slot_id: Optional[int] = None
+    doctor_id:Optional[int] = None
+    reason:Optional[str] = None
+    

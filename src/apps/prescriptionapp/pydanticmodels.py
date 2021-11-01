@@ -13,6 +13,8 @@ Create_Timings = pydantic_model_creator(
     ClinicTimings, name="timings", exclude=("id","created","updated"))
 Create_AppointmentSlots = pydantic_model_creator(
     AppointmentSlots, name="AppointmentSlots", exclude=("id", "created", "updated"))
+Create_Appointments = pydantic_model_creator(
+    Appointments, name="Appointments", exclude=("id", "created", "updated"))
 Create_Prescription = pydantic_model_creator(
     Prescription, name="prescription", exclude=("id", "created", "updated"))
 Create_PresMedicines = pydantic_model_creator(
@@ -29,7 +31,6 @@ Create_ClinicZones = pydantic_model_creator(
     ClinicZones, name="ClinicZones", exclude=("id", "created", "updated", "active"))
 # Create_ClinicVerification = pydantic_model_creator(
 #     ClinicVerification, name="clinicverification", exclude=("id", "created", "updated", 'verified'))
-
 GET_Clinic = pydantic_model_creator(
     Clinic, name="ClinicGet")
 GET_Recopinist = pydantic_model_creator(
@@ -54,6 +55,7 @@ GET_Reports = pydantic_model_creator(
     MedicalReports, name="MedicalReports")
 GET_ClinicZones = pydantic_model_creator(
     ClinicZones, name="ClinicZones")
+
 
 # GET_ClinicVerification = pydantic_model_creator(
 #     ClinicVerification, name="ClinicVerification")

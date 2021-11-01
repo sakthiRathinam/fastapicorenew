@@ -85,6 +85,7 @@ def check_session(session: str = Depends(get_current_login)) -> str:
     return "session available"
 
 
+
 @user_router.get('/hashedpassword')
 def hased_password(password:str=None):
     if password is not None:
@@ -184,6 +185,10 @@ def play_request(request: Request,item:int):
 @user_router.get('/searchUsers')
 async def search_users(role: Roles, name: str, user : str=Depends(get_current_login)):
     toReturn = await User.filter(roles=role, first_name__istartswith=name).only('id','username','first_name','last_name')
+    return toReturn[:5]
+@user_router.get('/searchMobileUsers')
+async def search_users(role: Roles, mobile: str, user : str=Depends(get_current_login)):
+    toReturn = await User.filter(roles=role, mobile__istartswith=mobile).only('id', 'username', 'first_name', 'last_name')
     return toReturn[:5]
 
 

@@ -147,31 +147,67 @@ async def add_slots(data: Create_AppointmentSlots,clinicid: int = Body(...),doct
     create_slot = await AppointmentSlots.create(clinic_id=clinicid, doctor_id=doctor, **data.dict(exclude_unset=True))
     return create_slot
 
+# @clinto_router.post('/addAppointments')
+# async def add_appointments(data: Create_Appointments, clinicid: int = Body(...), user: int = Body(...), slot: int = Body(...), accepted_slot: Optional[int] = Body(...)):
+#     print(data)
+#     if accepted_slot is None:
+#         create_appointment = await Appointments.create(clinic_id=clinicid,user_id=user,requested_slot_id=slot,**data.dict(exclude_unset=True))
+#     if accepted_slot is not None:
+#         create_appointment = await Appointments.create(clinic_id=clinicid, user_id=user, requested_slot_id=slot,accepted_slot_id=accepted_slot **data.dict(exclude_unset=True))
+#     return create_appointment
 @clinto_router.post('/addAppointments')
-async def add_appointments(data: Create_AppointmentSlots, clinicid: int,user:int,slot:int,accepted_slot:Optional[int]=None):
-    if accepted_slot is None:
-        create_appointment = await Appointments.create(clinic_id=clinicid,user_id=user,requested_slot_id=slot,**data.dict(exclude_unset=True))
-    if accepted_slot is not None:
-        create_appointment = await Appointments.create(clinic_id=clinicid, user_id=user, requested_slot_id=slot,accepted_slot_id=accepted_slot **data.dict(exclude_unset=True))
+async def add_appointments(data: AppointmentCreation):
+    print(data)
+    if data.user_create is not None:
+        user = User.create(**data.user_create.dict())
+        data.user_id = user.id
+    create_appointment = await Appointments.create(**data.dict(exclude_unset=True))
     return create_appointment
+
+@clinto_router.put('/editAppointments/{id}')
+async def add_appointments(data: EditAppointment,id:int):
+    edit_appointment = await appointment_view.update(data,id=id)
+    return edit_appointment
+
+
 
 
 @clinto_router.get('/getAppointments')
-async def get_appointments(limit: int, offset: int, clinic:int,status: Optional[AppointmentStatus]):
-    if status is  None:
-        toReturn = appointment_view.limited_data(limit=limit,offset=offset,clinic_id=clinic)
-        return toReturn
-    toReturn = appointment_view.limited_data(
-        limit=limit, offset=offset, status=status, clinic_id=clinic)
-    return toReturn
-
+async def get_appointments(limit: int, offset: int, request:Request,clinic:int,status: Optional[AppointmentStatus]=None,date:Optional[str]=None,doctor:Optional[int]= None):
+    params_dict = {**request.query_params}
+    print(params_dict)
+    filter_dict = dict()
+    filter_dict['clinic_id'] = clinic
+    if date is not None:
+        filter_dict["requested_date"] = date
+    if doctor is not None:
+        filter_dict["doctor_id"] = doctor
+    if status is not None:
+        filter_dict['status'] = status
+    toReturn =await appointment_view.limited_data(limit=limit,offset=offset,**filter_dict)
+    data_list = []
+    for data in toReturn['data']:
+        clinic_obj = await data.clinic
+        user_obj = await data.user
+        doctor_obj = await data.doctor
+        requested_slot = await data.requested_slot
+        accepted_slot = await data.accepted_slot
+        extra = {"clinic":{"name":clinic_obj.name,"id":clinic_obj.id,"mobile":clinic_obj.mobile,"lat":clinic_obj.lat,"lang":clinic_obj.lang},"user":{"name":user_obj.first_name + " " + user_obj.last_name,"id":user_obj.id,"age":age(doctor_obj.date_of_birth),"sex":user_obj.sex,"mobile":user_obj.mobile},"doctor":{"name":doctor_obj.first_name + " " + doctor_obj.last_name,"id":doctor_obj.id,"age":age(doctor_obj.date_of_birth),"sex":doctor_obj.sex},"slot":{"requested":requested_slot.slot_time,"accepted":accepted_slot.slot_time if accepted_slot is not None else None}}
+        extra_data = {"appointment":data,"extra":extra}
+        data_list.append(extra_data)
+    return {**toReturn,"data":data_list}
+weekday_dict = {1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday',
+    5: 'Friday', 6: 'Saturday', 0: 'Sunday'}
 @clinto_router.get('/getSlots')
-async def get_appointmentslots(limit: int, offset: int,clinic:int, day: Optional[Days]=None, doctor: Optional[int] = None):
+async def get_appointmentslots(limit: int, offset: int,clinic:int, day: Optional[Days]=None, doctor: Optional[int] = None,weekday:Optional[int]=None):
+    if weekday is not None:
+        day = weekday_dict[weekday]
     if doctor is None:
         if day is not None:
             toReturn = await slot_view.limited_data(limit=limit, offset=offset, clinic_id=clinic,day=day)
         else:
             toReturn = await slot_view.limited_data(limit=limit, offset=offset, clinic_id=clinic)
+       
         data_list = []
         for data in toReturn['data']:
             doctor = await data.doctor
@@ -184,6 +220,7 @@ async def get_appointmentslots(limit: int, offset: int,clinic:int, day: Optional
         limit=limit, offset=offset, doctor_id=doctor,clinic_id=clinic)
     else:
         toReturn = await slot_view.limited_data(limit=limit, offset=offset, clinic_id=clinic,day=day,doctor_id=doctor) 
+        
     data_list = []
     for data in toReturn['data']:
         doctor = await data.doctor

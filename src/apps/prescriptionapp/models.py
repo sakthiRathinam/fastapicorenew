@@ -203,6 +203,7 @@ class AppointmentSlots(models.Model):
     created = fields.DatetimeField(auto_now_add=True)
     updated = fields.DatetimeField(auto_now=True)
     slot_time = fields.CharField(max_length=900,null=True,blank=True)
+    date = fields.DateField(null=True, blank=True)
     clinic: fields.ForeignKeyRelation[Clinic] = fields.ForeignKeyField(
         "models.Clinic", related_name="clinicslots")
     max_slots = fields.IntField(default=0)
@@ -223,9 +224,10 @@ class Appointments(models.Model):
     requested_slot: fields.ForeignKeyRelation[AppointmentSlots] = fields.ForeignKeyField(
         "models.AppointmentSlots", related_name="requestedappointments")
     accepted_slot : fields.ForeignKeyRelation[AppointmentSlots] = fields.ForeignKeyField(
-        "models.AppointmentSlots", related_name="acceptedappointments")
+        "models.AppointmentSlots", related_name="acceptedappointments",null=True,blank=True)
     status: AppointmentStatus = fields.CharEnumField(
         AppointmentStatus, default=AppointmentStatus.Pending)
+    reason = fields.TextField(max_length=3000,null=True, blank=True)
     doctor: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
         "models.User", related_name="doctorappointments")
     
