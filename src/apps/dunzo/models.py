@@ -149,6 +149,12 @@ class DunzoOrder(models.Model):
         DunzoPayments, default=DunzoPayments.DUNZO_CREDIT)
     medical_order: fields.ForeignKeyRelation[MedicalAccepted] = fields.ForeignKeyField(
         "models.MedicalAccepted", related_name="MedicalAccepted", null=True, blank=True)
+    
+
+    
+
+    
+
 
 
 

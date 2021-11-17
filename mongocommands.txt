@@ -1,0 +1,35 @@
+>>> db = virtual_database
+>>> db.list_collection_names
+<bound method Database.list_collection_names of AsyncIOMotorDatabase(Database(MongoClient(host=['sakthimongo-shard-00-02.lesxv.mongodb.net:27017', 'sakthimongo-shard-00-01.lesxv.mongodb.net:27017', 'sakthimongo-shard-00-00.lesxv.mongodb.net:27017'], document_class=dict, tz_aware=False, connect=False, authsource='admin', replicaset='atlas-gv9n4e-shard-0', ssl=True, driver=DriverInfo(name='Motor', version='2.5.0', platform='asyncio')), 'sharma'))>
+
+>>> await db.list_collection_names()
+['inventory', 'capped', 'shops', 'products']
+
+>>> await db.inventory.find()
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+TypeError: object AsyncIOMotorCursor can't be used in 'await' expression
+
+object AsyncIOMotorCursor can't be used in 'await' expression
+>>> db.inventory.find()
+AsyncIOMotorCursor(<pymongo.cursor.Cursor object at 0x7f978c60b2e0>)
+
+>>> s = db.inventory.find()
+>>> s.next()
+<coroutine object AgnosticBaseCursor.next at 0x7f979e3a3c40>
+
+>>> await s.next()
+{'_id': ObjectId('618cdf690008ee4217c375e1'), 'clinic': 2, 'title': 'string'}
+
+>>> s = await db.inventory.find_one({"_id":4},{'objs':{'$slice':[0,5]}})
+>>> s
+{'_id': 4, 'clinic': 2, 'title': 'awefawfeawef efwafaw', 'objs': [{'name': 'medicine0', 'type': 'something wrong', 'active': False}, {'name': 'medicine1', 'type': 'something wrong', 'active': False}, {'name': 'medicine2', 'type': 'something wrong', 'active': False}, {'name': 'medicine3', 'type': 'something wrong', 'active': False}, {'name': 'medicine4', 'type': 'something wrong', 'active': False}]}
+
+>>> s = await db.inventory.find_one({"_id":4},{'objs':{'$slice':[5,10]}})
+>>> s
+{'_id': 4, 'clinic': 2, 'title': 'awefawfeawef efwafaw', 'objs': [{'name': 'medicine5', 'type': 'something wrong', 'active': False}, {'name': 'medicine6', 'type': 'something wrong', 'active': False}, {'name': 'medicine7', 'type': 'something wrong', 'active': False}, {'name': 'medicine8', 'type': 'something wrong', 'active': False}, {'name': 'medicine9', 'type': 'something wrong', 'active': False}, {'name': 'medicine10', 'type': 'something wrong', 'active': False}, {'name': 'medicine11', 'type': 'something wrong', 'active': False}, {'name': 'medicine12', 'type': 'something wrong', 'active': False}, {'name': 'medicine13', 'type': 'something wrong', 'active': False}, {'name': 'medicine14', 'type': 'something wrong', 'active': False}]}
+
+>>> s = await db.inventory.find_one({"_id":4},{'objs':{'$slice':[5,5]}})
+>>> s
+{'_id': 4, 'clinic': 2, 'title': 'awefawfeawef efwafaw', 'objs': [{'name': 'medicine5', 'type': 'something wrong', 'active': False}, {'name': 'medicine6', 'type': 'something wrong', 'active': False}, {'name': 'medicine7', 'type': 'something wrong', 'active': False}, {'name': 'medicine8', 'type': 'something wrong', 'active': False}, {'name': 'medicine9', 'type': 'something wrong', 'active': False}]}
+
