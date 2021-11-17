@@ -12,6 +12,7 @@ class Roles(str,Enum):
     Doctor = "Doctor"
     Patient = "Patient"
     Recoponist = "Recoponist"
+    MedicalRecoponist = "MedicalRecoponist"
     PharmacyOwner = "PharmacyOwner"
     LabOwner = "LabOwner"
     Admin = "Admin"
@@ -86,6 +87,7 @@ class User(models.Model):
     address = fields.TextField(max_length=3000, null=True, default="")
     qualifications = StringArrayField(null=True,blank=True)
     specialization = StringArrayField(null=True,blank=True)
+    health_issues = StringArrayField(null=True,blank=True)
     notificationIds = StringArrayField(null=True,blank=True)
     last_login = fields.DatetimeField(null=True)
     experience = fields.IntField(null=True,blank=True)

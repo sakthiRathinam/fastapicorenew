@@ -38,6 +38,7 @@ async def getUser(userid:int):
 
 @user_router.post('/login')
 async def save_cookie_user(response: Response, request: Request, username: str = Body(...), password: str = Body(...), notificationId:Optional[str]=Body(...)):
+    print(username,password)
     if username and password is not None:
         authenticate = await user_service.authenticate(username,password)
         if authenticate is not None:
@@ -188,7 +189,7 @@ async def search_users(role: Roles, name: str, user : str=Depends(get_current_lo
     return toReturn[:5]
 @user_router.get('/searchMobileUsers')
 async def search_users(role: Roles, mobile: str, user : str=Depends(get_current_login)):
-    toReturn = await User.filter(roles=role, mobile__istartswith=mobile).only('id', 'username', 'first_name', 'last_name')
+    toReturn = await User.filter(roles=role, mobile__istartswith=mobile).only('id', 'username', 'first_name', 'last_name', 'mobile', 'date_of_birth', 'health_issues', 'sex')
     return toReturn[:5]
 
 

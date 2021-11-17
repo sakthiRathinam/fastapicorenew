@@ -90,9 +90,12 @@ async def add_doctors(data: Create_Doctor, user: User_Pydantic,clinic: int = Bod
 async def add_doctors(data: Create_Recopinist, user: User_Pydantic, clinic: int = Body(...)):
     if await User.filter(Q(username=user.username) | Q(email=user.email)).exists():
         user = await User.filter(Q(username=user.username) | Q(email=user.email)).first()
+        user_id = user.id
     else:
         user = await user_service.create_user(user)
-    create_recopinist = await ClinicReceponists.create(clinic_id=clinic, user_id=user.id, **data.dict(exclude_unset=True))
+        user_id = user['id']
+    print(user_id)
+    create_recopinist = await ClinicReceponists.create(clinic_id=clinic, user_id=user_id, **data.dict(exclude_unset=True))
     return create_recopinist
 
 @clinto_router.post("/addClinicImages")
@@ -127,10 +130,20 @@ async def add_timings(timings: List[Create_Timings],clinic: bool=Body(...), clin
             await timings_obj.save()
     return {"success":"timing updated"}
 
-@clinto_router.post("/getDoctorClinics")
+@clinto_router.get("/getDoctorClinics")
 async def get_doctor_clinics(doctor:int):
     doctor_obj = await User.get(id=doctor).prefetch_related("workingclinics")
     working_clinics = await doctor_obj.workingclinics.all().prefetch_related("clinic")
+    clinics_list = []
+    for clinics in working_clinics:
+        clinic = await clinics.clinic
+        clinics_list.append({"clinic":clinic,"details":clinics})
+    return {"working_clinics": clinics_list,"user":doctor_obj}
+
+@clinto_router.get("/getRecopClinics")
+async def get_doctor_clinics(recop:int):
+    doctor_obj = await User.get(id=recop).prefetch_related("workingshops")
+    working_clinics = await doctor_obj.workingshops.all().prefetch_related("clinic")
     clinics_list = []
     for clinics in working_clinics:
         clinic = await clinics.clinic
@@ -157,9 +170,8 @@ async def add_slots(data: Create_AppointmentSlots,clinicid: int = Body(...),doct
 #     return create_appointment
 @clinto_router.post('/addAppointments')
 async def add_appointments(data: AppointmentCreation):
-    print(data)
     if data.user_create is not None:
-        user = User.create(**data.user_create.dict())
+        user = await User.create(**data.user_create.dict())
         data.user_id = user.id
     create_appointment = await Appointments.create(**data.dict(exclude_unset=True))
     return create_appointment
@@ -192,7 +204,8 @@ async def get_appointments(limit: int, offset: int, request:Request,clinic:int,s
         doctor_obj = await data.doctor
         requested_slot = await data.requested_slot
         accepted_slot = await data.accepted_slot
-        extra = {"clinic":{"name":clinic_obj.name,"id":clinic_obj.id,"mobile":clinic_obj.mobile,"lat":clinic_obj.lat,"lang":clinic_obj.lang},"user":{"name":user_obj.first_name + " " + user_obj.last_name,"id":user_obj.id,"age":age(doctor_obj.date_of_birth),"sex":user_obj.sex,"mobile":user_obj.mobile},"doctor":{"name":doctor_obj.first_name + " " + doctor_obj.last_name,"id":doctor_obj.id,"age":age(doctor_obj.date_of_birth),"sex":doctor_obj.sex},"slot":{"requested":requested_slot.slot_time,"accepted":accepted_slot.slot_time if accepted_slot is not None else None}}
+        extra = {"clinic": {"name": clinic_obj.name, "id": clinic_obj.id, "mobile": clinic_obj.mobile, "lat": clinic_obj.lat, "lang": clinic_obj.lang}, "user": {"name": user_obj.first_name + " " + user_obj.last_name, "id": user_obj.id, "age": age(user_obj.date_of_birth),"dob":user_obj.date_of_birth, "sex": user_obj.sex, "mobile": user_obj.mobile,"health_issues":user_obj.health_issues}, "doctor": {
+            "name": doctor_obj.first_name + " " + doctor_obj.last_name, "id": doctor_obj.id, "age": age(doctor_obj.date_of_birth), "sex": doctor_obj.sex}, "slot": {"requested": requested_slot.slot_time, "accepted": accepted_slot.slot_time if accepted_slot is not None else None}}
         extra_data = {"appointment":data,"extra":extra}
         data_list.append(extra_data)
     return {**toReturn,"data":data_list}
@@ -268,20 +281,32 @@ async def add_prescription(data:AddPrescription):
             )
         else:
             doctor_obj = await User.get(id=data.doctor_id)
-            pres_obj = await Prescription.create(**data.dict(exclude_unset=True))
-            for diag in data.diagonsis:
-                diag_obj = await Diagonsis.get_or_create(title=diag.diagonsis)
+            if data.user_id is not None:
+                user_obj = await User.get(id=data.user_id)
+            if data.user_create is not None:
+                user_obj = await User.create(**data.user_create.dict())
+            pres_obj = await Prescription.create(clinic=clinic_obj, doctor=doctor_obj, user=user_obj, doctor_fees=data.doctor_fees, next_visit=data.next_visit,personal=True)
+            for diag in data.medicines:
+                diag_obj, created = await Diagonsis.get_or_create(title=diag.diagonsis)
                 if diag.template:
-                    pres_template = await PrescriptionTemplates.create(diagonsis=diag_obj,personal=True,doctor=doctor_obj,command=diag.command)
-                for medicine in medicines_list:
-                    medicine_obj = await PresMedicines.create(**medicine.dict(exclude_unset=True))
+                    pres_template = await PrescriptionTemplates.create(diagonsis=diag_obj, personal=False, doctor_obj=doctor_obj, command=diag.command)
+                for medicine in diag.pres_medicines:
+                    medicine_obj = await PresMedicines.create(**medicine.dict(exclude_unset=True), diagonsis=diag_obj)
+                    await pres_obj.medicines.add(medicine_obj)
+                    if medicine_obj.is_drug:
+                        pres_obj.contains_drug = True
+                    if diag.template:
+                        await pres_template.medicines.add(medicine_obj)
+                for medicine in diag.medicines_given:
+                    medicine_obj = await PresMedicines.create(**medicine.dict(exclude_unset=True), diagonsis=diag_obj)
                     await pres_obj.medicines.add(medicine_obj)
                     if diag.template:
                         await pres_template.medicines.add(medicine_obj)
-                await pres_obj.diagonsis.add(diag_obj)
+                await pres_obj.diagonsis_list.add(diag_obj)
             for report in data.reports:
                 report_obj = await MedicalReports.get_or_create(title=report)
                 await pres_obj.reports.add(report_obj)
+            await pres_obj.save()
     else:
         if data.clinic_id is None and data.doctor_id is None:
             raise HTTPException(
@@ -290,31 +315,73 @@ async def add_prescription(data:AddPrescription):
         else:
             clinic_obj = await Clinic.get(id=data.clinic_id)
             doctor_obj = await User.get(id=data.doctor_id)
-            pres_obj = await Prescription.create(**data.dict(exclude_unset=True))
-            for diag in data.diagonsis:
-                diag_obj = await Diagonsis.get_or_create(title=diag.diagonsis)
+            if data.user_id is not None:
+                user_obj = await User.get(id=data.user_id)
+            if data.user_create is not None:
+                user_obj = await User.create(**data.user_create.dict())
+            pres_obj = await Prescription.create(clinic=clinic_obj, doctor=doctor_obj, user=user_obj, doctor_fees=data.doctor_fees,next_visit=data.next_visit)
+            
+            for diag in data.medicines:
+                
+                diag_obj,created = await Diagonsis.get_or_create(title=diag.diagonsis)
                 if diag.template:
-                    pres_template = await PrescriptionTemplates.create(diagonsis=diag_obj, personal=False, clinic=clinic_obj, command=diag.command)
-                for medicine in medicines_list:
-                    medicine_obj = await PresMedicines.create(**medicine.dict(exclude_unset=True))
+                    pres_template = await PrescriptionTemplates.create(diagonsis=diag_obj, personal=False, doctor_obj=doctor_obj, command=diag.command)
+                for medicine in diag.pres_medicines:
+                    print(medicine,"imhereee")
+                    medicine_obj = await PresMedicines.create(**medicine.dict(exclude_unset=True),diagonsis=diag_obj)
+                    await pres_obj.medicines.add(medicine_obj)
+                    if medicine_obj.is_drug:
+                        pres_obj.contains_drug = True
+                    if diag.template:
+                        await pres_template.medicines.add(medicine_obj)
+                for medicine in diag.medicines_given:
+                    medicine_obj = await PresMedicines.create(**medicine.dict(exclude_unset=True), diagonsis=diag_obj)
                     await pres_obj.medicines.add(medicine_obj)
                     if diag.template:
                         await pres_template.medicines.add(medicine_obj)
-                await pres_obj.diagonsis.add(diag_obj)
+                await pres_obj.diagonsis_list.add(diag_obj)
             for report in data.reports:
                 report_obj = await MedicalReports.get_or_create(title=report)
                 await pres_obj.reports.add(report_obj)
-            return JSONResponse({"success":"prescription created successfully","pres_obj":pres_obj.id},status_code=500)
+            await pres_obj.save()
+            return JSONResponse({"success":"prescription created successfully","pres_obj":pres_obj.id},status_code=201)
         
 @clinto_router.get('/getPrescriptions')
 async def get_prescriptions(clinic:Optional[int]=None,doctor:Optional[int]=None,user:Optional[int]=None,limit:int=10,offset:int=0):
     if clinic is not None:
-        pres_objs = await Prescription.filter(clinic_id=clinic)
+        pres_objs = await prescription_view.limited_data(limit=limit, offset=offset, clinic_id=clinic)
     if doctor is not None:
-        pres_objs = await Prescription.filter(doctor_id=doctor)
+        pres_objs = await prescription_view.limited_data(limit=limit, offset=offset, doctor_id=doctor)
+    to_send = []
+    for pres in pres_objs['data']:
+        clinic = None
+        receponist = None
+        doctor = None
+        user = await pres.user
+        if pres.clinic_id is not None:
+            clinic = await pres.clinic
+        if pres.doctor_id is not None:
+            doctor = await pres.doctor
+        if pres.receponist is not None:
+            receponist = await pres.receponist
+        pres_full = {"main_data": pres, "medicines_given": await pres.medicines.filter(is_given=True).only('morning_count', 'afternoon_count', 'invalid_count', 'night_count', 'qty_per_time', 'total_qty', 'command', 'medicine_name', 'is_drug', 'before_food', 'is_given', 'days', 'medicine_id', 'medicine_type'), "pres_medicines": await pres.medicines.filter(is_given=False).only('morning_count', 'afternoon_count', 'invalid_count', 'night_count', 'qty_per_time', 'total_qty', 'command', 'medicine_name', 'is_drug', 'before_food', 'is_given', 'days', 'medicine_id', 'medicine_type'),"clinic":{"name":clinic.name,"mobile":clinic.mobile,"email":clinic.email,"address":clinic.address,"lat":clinic.lat,"lang":clinic.lang,"lat":clinic.lat,"lang":clinic.lang} if clinic is not None else None,"user":{"name":user.first_name + " "+user.last_name,"mobile":user.mobile,"id":user.id,"age":age(user.date_of_birth),"sex":user.sex,"health_issues":user.health_issues},"doctor":{"name":doctor.first_name + " "+doctor.last_name,"id":doctor.id,"mobile":doctor.mobile,"email":doctor.email} if doctor is not None else None}
+        to_send.append(pres_full)
+    pres_objs['data'] = to_send
     return pres_objs
-    
-    
+        
+@clinto_router.get('/searchDiagonsis')
+async def search_diagonsis(name:str,doctor:int):
+    diagonsis_objs = await Diagonsis.filter(title__istartswith=name).only('title','active','id')
+    if len(diagonsis_objs) > 5:
+        diagonsis_objs = diagonsis_objs[:5]
+    diag_objs = []
+    for diag in diagonsis_objs:
+        doctor_templates = await PrescriptionTemplates.filter(doctor_obj_id=doctor,diagonsis=diag).prefetch_related('medicines')
+        diag_full = {"diag": diag, "template": [{"details": template, "medicines_given": await template.medicines.filter(is_given=True).only('morning_count', 'afternoon_count', 'invalid_count', 'night_count', 'qty_per_time', 'total_qty', 'command', 'medicine_name', 'is_drug', 'before_food', 'is_given', 'days', 'medicine_id','medicine_type'), "pres_medicines": await template.medicines.filter(is_given=False).only('morning_count', 'afternoon_count', 'invalid_count', 'night_count', 'qty_per_time', 'total_qty', 'command', 'medicine_name', 'is_drug', 'before_food', 'is_given', 'days', 'medicine_id','medicine_type')} for template in doctor_templates]}
+        diag_objs.append(diag_full)
+    return diag_objs
+
+
 
         
 
@@ -331,7 +398,6 @@ async def add_prescription(data: AddExistingDoctor):
         else:
             print("not found")
     return {"success":"doctor added success"}
-
 
     
 
@@ -422,9 +488,14 @@ async def update_medicines(id:int,data:Create_Medicine= Body(...)):
     return {"success":"updated"}
 
 @clinto_router.get('/filtermedicines')
-async def filter_medicines(data: GET_Medicine = Body(...)):
-    await medicine_view.filter(**data.dict(exclude_unset=True))
-    return {"success":"updated"}
+async def filter_medicines(request: Request, title: Optional[str] = None, type: Optional[MedicineTypes] = None):
+    query_params = request.query_params
+    if type is not None:
+        medicines = await Medicine.filter(**query_params,title__istartswith=title)
+    else:
+        print("im heree")
+        medicines = await Medicine.filter(title__istartswith=title)
+        return medicines
 
 @clinto_router.post('/addPharamacyOwners')
 async def add_medicines(data: Create_PharmacyOwners = Body(...),clinic:int=Body(...),user:int=Body(...)):
@@ -503,6 +574,7 @@ async def filter_lab_owners(clinic_id: Optional[int] = None, user_id: Optional[i
 
 
 
+
 @clinto_router.get('/mainMedicines')
 async def main_medicines(limit:int=10,offset:int=0,active:bool=True,search:bool=False):
     next_items = False
@@ -541,6 +613,7 @@ async def filter_medicines(data: GET_Reports = Body(...)):
 async def get_reports(limit: int = 10, offset:int = 0):
     reports = await report_view.limited_data(limit=limit, offset=offset)
     return reports
+
 
 
     

@@ -32,7 +32,6 @@ def convert_mongo_object(obj):
 async def create_books(data:Book):
     res = await virtual_database.capped.insert_one(data.dict())
     created_book =  virtual_database.capped.find({})
-    
     # serialized_books =  list(map(lambda row: {i: str(row[i]) if isinstance(row[i], ObjectId) else row[i] for i in row}, books))
     return JSONResponse({"books":await convert_mongo_list_json(created_book)},status_code=200)
     # book = convert_book(created_book)

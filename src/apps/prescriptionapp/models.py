@@ -44,6 +44,7 @@ class AppointmentStatus(str, Enum):
     Requested = "Requested"
     Accepted = "Accepted"
     Cancelled = "Cancelled"
+    Completed = "Completed"
     ClinicCancelled = "ClinicCancelled"
     Pending = "Pending"
     
@@ -268,10 +269,13 @@ class PresMedicines(models.Model):
     diagonsis: fields.ForeignKeyRelation[Diagonsis] = fields.ForeignKeyField(
         "models.Diagonsis", related_name="diagonsismedicines")
     create_template = fields.BooleanField(default=False)
+    medicine_type: MedicineTypes = fields.CharEnumField(
+        MedicineTypes, default=MedicineTypes.Capsules)
     morning_count = fields.FloatField(default=0)
     afternoon_count = fields.FloatField(default=0)
     invalid_count = fields.FloatField(default=0)
     night_count = fields.FloatField(default=0)
+    medicine_name = fields.CharField(max_length=300,null=True,blank=True)
     qty_per_time = fields.FloatField(default=0)
     total_qty = fields.FloatField(default=0)
     command = fields.TextField(null=True, blank=True, max_length=4000)
@@ -324,10 +328,8 @@ class PrescriptionTemplates(models.Model):
     medicines: fields.ManyToManyRelation["PresMedicines"] = fields.ManyToManyField(
         "models.PresMedicines", related_name="templatemedicines")
     active = fields.BooleanField(default=True)
-    clinic: fields.ForeignKeyRelation[Clinic] = fields.ForeignKeyField(
-        "models.Clinic", related_name="clinictemplates", null=True, blank=True)
-    doctor: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
-        "models.Clinic", related_name="doctortemplates", null=True, blank=True)
+    doctor_obj: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
+        "models.User", related_name="doctortemplatess", null=True, blank=True)
     personal = fields.BooleanField(default=False)
     
 

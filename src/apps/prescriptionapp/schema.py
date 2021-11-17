@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import UploadFile,File
 from datetime import date, datetime, time, timedelta
 from .pydanticmodels import Create_PresMedicines, Create_Timings
-from .models import AppointmentStatus
+from .models import AppointmentStatus, MedicineTypes
 from src.apps.users.models import Sex
 class AddDoctor(BaseModel):
     clinic: int
@@ -25,36 +25,51 @@ class Properties(BaseModel):
     author: str = None
     
 class PrescriptionMedicines(BaseModel):
-    morning_count : int = 0
-    afternoon_count: int = 0
-    invalid_count: int = 0
-    night_count: int = 0
-    qty_per_time: int = 0
-    total_qty: int = 0
+    morning_count : float = 0
+    afternoon_count: float = 0
+    invalid_count: float = 0
+    night_count: float = 0
+    qty_per_time: float = 0
+    total_qty: float = 0
     command: str = ""
+    medicine_name:str
+    medicine_type: MedicineTypes
     is_drug: Optional[bool] = False
     before_food: Optional[bool] = False
     is_given: Optional[bool] = False
     days: int = 0
-    medicine: int
-    
+    medicine_id: int
+
+
+class PatientCreation(BaseModel):
+    username: str
+    mobile: str
+    first_name: str
+    password: str
+    sex: str
+    health_issues: Optional[List[str]] = []
+    last_name: Optional[str] = None
+    dob: date
 class CreateTemplate(BaseModel):
     diagonsis:str
     command:str
     template:Optional[bool] = False
-    medicines_list:List[PrescriptionMedicines]
+    pres_medicines:List[PrescriptionMedicines]
+    medicines_given:List[PrescriptionMedicines]
 class AddPrescription(BaseModel):
     active : bool = True
+    next_visit: Optional[date] = None
     personal_prescription : bool = False
     contains_drug: Optional[bool] = False
     is_template: Optional[bool] = False
     appointment_taken: Optional[bool] = False
     doctor_fees: int
-    user_id : int
+    user_id : Optional[int] = None
+    user_create: Optional[PatientCreation] = None
     clinic_id : Optional[int] = None
     doctor_id : Optional[int] = None
-    receponist_id : Optional[int]
-    diagonsis: List[CreateTemplate]
+    receponist_id : Optional[int] = None
+    medicines: List[CreateTemplate]
     reports : Optional[List[str]] = []
     
 
@@ -87,7 +102,7 @@ class FilterPharOwners(BaseModel):
     starttime_str: Optional[str] = None
 
 class SlotDict(BaseModel):
-    max_slots:int
+    max_slots:Optional[int] = 0
     slot_time: str
     
     
@@ -102,13 +117,7 @@ class BulkSlot(BaseModel):
     clinic_id: int
     doctor_id: int
     
-class PatientCreation(BaseModel):
-    username:str
-    mobile:str
-    first_name:str
-    sex:str
-    last_name:Optional[str] = None
-    dob: date
+
     
 class AppointmentCreation(BaseModel):
     user_id:Optional[int] = None

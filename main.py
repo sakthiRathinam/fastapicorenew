@@ -11,7 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import logging
-from src.config.mongo_conf import virtual_client,local_client
+from src.config.mongo_conf import destroy_clients
+from src.apps.inventory.mongoindexes import mongo_indexes
 from fastapi_pagination import LimitOffsetPage, Page, add_pagination
 
 fastapi.logging = logging.getLogger('uvicorn')
@@ -26,6 +27,8 @@ app.mount("/media", StaticFiles(directory="media"), name="media")
 #     TrustedHostMiddleware, allowed_hosts=[
 #         "192.168.29.98", '192.168.29.12', '192.168.29.242', 'localhost', '127.0.0.1']
 # )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -36,16 +39,15 @@ app.add_middleware(
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    virtual_client.close()
-    local_client.close()
+    destroy_clients()
     
 
 @app.on_event("startup")
 async def start_db():
     init_tortoise()
+    await mongo_indexes()
     add_pagination(app)
 
-    
 
 
 db_config["generate_schemas"]=False
@@ -66,6 +68,6 @@ def init_tortoise():
     )
     print("tortoise connected successfully")
     
-def init_mongo():
-    pass
+
+
     
