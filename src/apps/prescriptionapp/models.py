@@ -275,7 +275,8 @@ class PresMedicines(models.Model):
     afternoon_count = fields.FloatField(default=0)
     invalid_count = fields.FloatField(default=0)
     night_count = fields.FloatField(default=0)
-    medicine_name = fields.CharField(max_length=300,null=True,blank=True)
+    medicine_name = fields.CharField(max_length=1200,null=True,blank=True)
+    diagonsisName = fields.CharField(max_length=1200,null=True,blank=True)
     qty_per_time = fields.FloatField(default=0)
     total_qty = fields.FloatField(default=0)
     command = fields.TextField(null=True, blank=True, max_length=4000)
@@ -308,6 +309,7 @@ class Prescription(models.Model):
         "models.MedicalReports", related_name="presreports")
     active = fields.BooleanField(default=True)
     create_template = fields.BooleanField(default=False)
+    reason = fields.TextField(null=True, blank=True, max_length=4000)
     personal_prescription = fields.BooleanField(default=False)
     rating_taken = fields.BooleanField(default=False)
     receponist: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(

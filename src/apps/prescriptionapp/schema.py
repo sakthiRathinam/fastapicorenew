@@ -71,6 +71,8 @@ class AddPrescription(BaseModel):
     receponist_id : Optional[int] = None
     medicines: List[CreateTemplate]
     reports : Optional[List[str]] = []
+    appointment: Optional[int] = None
+    reason: Optional[str] = None
     
 
 class AddExistingDoctor(BaseModel):

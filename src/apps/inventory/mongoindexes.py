@@ -8,6 +8,8 @@ async def mongo_indexes():
     # try:
     await virtual_database.inventory.create_index([('clinic', pymongo.DESCENDING)], unique=True, background=True)
     await virtual_database.inventory.create_index([('medicines.name', pymongo.DESCENDING)],background=True)
+    await virtual_database.clinicinventory.create_index([('clinic', pymongo.DESCENDING)], unique=True, background=True)
+    await virtual_database.clinicinventory.create_index([('medicines.name', pymongo.DESCENDING)],background=True)
     # await virtual_database.inventory.drop_index("medicines.name_-1")
     # except:
     #     raise Exception('some error occured')

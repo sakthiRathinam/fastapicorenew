@@ -10,6 +10,7 @@ from src.config.mongo_conf import *
 from .schema import *
 from .service import *
 import os
+from src.apps.prescriptionapp.models import Medicine
 from src.config.mongo_conf import virtual_database, local_database
 from src.config.settings import BASE_DIR, STATIC_ROOT, MEDIA_ROOT
 from fastapi.encoders import jsonable_encoder
@@ -45,13 +46,16 @@ async def create_inventory(data: Inventory):
     return {"success": "inventory added successfully"}
 
 
-    
+
     
 
 @medical_extra_router.post("/getInventory")
 async def create_inventory(clinic: int):
     inv_obj = await virtual_database.inventory.find_one({"clinic": clinic}, {'medicines': {'$slice': [0, 5]}})
     return inv_obj
+
+
+
 
 
 @medical_extra_router.delete("/deleteInventory")
@@ -73,8 +77,40 @@ async def create_inventory(clinic: int):
 
 
 
+@medical_extra_router.post('/addClinicMedicines')
+async def update_inventory(data: AddMedicine):
+    data = data.dict()
+    inventory = data.pop('inventory')
+    update_obj = await virtual_database.inventory.find_one({"_id": inventory})
+    if data['main_medicine'] is None:
+        data['main_medicine'] = await get_main_medicine()
+    medicine_obj = await virtual_database.inventory.find(
+        {"_id": inventory, "medicines.name": data['name']}).to_list(1)
+    if medicine_obj:
+        return "medicine already available kindly update dont add duplicate"
+    # if update_obj.get('medicines') is not None:
+    #     medicines = update_obj['medicines']
+    #     medicines.append(data)
+    # else:
+    #     medicines = update_obj['medicines'] = [data]
+    updating_obj = await virtual_database.inventory.update_one({"_id": inventory}, {"$push": {"medicines": data}})
+    return "updated"
+
+@medical_extra_router.post('/checkAvailablity')
+async def check_availability(data: CheckAvailable):
+    for medicine in data.medicines:
+        check_obj = await virtual_database.clinicinventory.find_one({"clinic":data.clinic,"medicines.total_qty":{"$gte":medicine.quantity},"medicines.name":medicine.medicine})
+        if check_obj:
+            continue
+        else:
+            return JSONResponse({"available":False,"detail":f'{medicine.medicine} this medicine is not available'})
+    return JSONResponse({"available": True, "detail": "all medicines are available"})
+    
+
+
+
 @medical_extra_router.post('/addMedicines')
-async def update_inventory(data: Medicine):
+async def update_inventory(data: AddMedicine):
     data = data.dict()
     inventory = data.pop('inventory')
     update_obj = await virtual_database.inventory.find_one({"_id": inventory})
@@ -82,13 +118,13 @@ async def update_inventory(data: Medicine):
         {"_id":inventory,"medicines.name": data['name']}).to_list(1)
     if medicine_obj:
         return "medicine already available kindly update dont add duplicate"
-    if update_obj.get('medicines') is not None:
-        medicines = update_obj['medicines']
-        medicines.append(data)
-    else:
-        print("update")
-        medicines = update_obj['medicines'] = [data]
-    updating_obj = await virtual_database.inventory.update_one({"_id": inventory}, {"$set": {"medicines": medicines}})
+    # if update_obj.get('medicines') is not None:
+    #     medicines = update_obj['medicines']
+    #     medicines.append(data)
+    # else:
+    #     print("update")
+    #     medicines = update_obj['medicines'] = [data]
+    updating_obj = await virtual_database.inventory.update_one({"_id": inventory}, {"$push": {"medicines": data}})
     return "updated"
 
 @medical_extra_router.post('/checkavailabilty')

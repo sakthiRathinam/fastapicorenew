@@ -17,20 +17,45 @@ from src.apps.users.models import Sex
 #     is_given: Optional[bool] = False
 #     days: int = 0
 #     medicine: int
-class Medicine(BaseModel):
+class AddMedicine(BaseModel):
     name: str
     inventory: int
     price: float
+    main_medicine:Optional[int] = None
     active: Optional[bool] = False
 class NormalMedicine(BaseModel):
     name: str
     clinic: int
     price: float
+    main_medicine:int
     active: Optional[bool] = False
 class Inventory(BaseModel):
     clinic: int
     title: str
-    medicines: Optional[List[Medicine]] = []
+    medicines: Optional[List[AddMedicine]] = []
+    
+class ClinicMedicine(BaseModel):
+    name : str
+    clinic : int
+    max_price: float
+    price: float
+    min_qty : float
+    indication_qty: float
+    total_qty: float
+    is_drug: bool
+    main_medicine: Optional[int] = None
+    
+class AvailableMedicine(BaseModel):
+    medicine: str
+    quantity: float
+class CheckAvailable(BaseModel):
+    medicines: List[AvailableMedicine]
+    clinic: int
+    
+    
+
+    
+
     
 
     
