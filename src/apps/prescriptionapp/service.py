@@ -61,6 +61,12 @@ class LabOwnersViewSet(BaseService):
 class ClinicZonesViewSet(BaseService):
     model = ClinicZones
     get_schema = GET_ClinicZones
+class LabReportsViewSet(BaseService):
+    model = LabReports
+    get_schema = GET_LabReports
+class ClinicReportsViewSet(BaseService):
+    model = ClinicReports
+    get_schema = GET_ClinicReports
     
 ##########################################routers#####################################################
 clinic_view = ClincViewSet()
@@ -74,6 +80,8 @@ report_view = ReportViewSet()
 lab_owner_view = LabOwnersViewSet()
 pharmacy_owner_view = PharmacyOwnersViewSet()
 clinic_zones = ClinicZonesViewSet()
+lab_reports = LabReportsViewSet()
+clinic_reports = ClinicReportsViewSet()
 # clinic_verify = ClinicVerifyViewSet()
 
 

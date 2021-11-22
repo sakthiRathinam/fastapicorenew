@@ -1,0 +1,20 @@
+-- upgrade --
+ALTER TABLE "user" ALTER COLUMN "date_of_birth" SET DEFAULT '2021-11-20';
+CREATE TABLE IF NOT EXISTS "labreports" (
+    "id" SERIAL NOT NULL PRIMARY KEY,
+    "created" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "updated" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "clinic_id" INT REFERENCES "clinic" ("id") ON DELETE CASCADE,
+    "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE
+);;
+CREATE TABLE IF NOT EXISTS "subreports" (
+    "id" SERIAL NOT NULL PRIMARY KEY,
+    "created" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "updated" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "file" TEXT,
+    "expected_result" TIMESTAMPTZ,
+    "report_id" INT NOT NULL REFERENCES "medicalreports" ("id") ON DELETE CASCADE
+);-- downgrade --
+ALTER TABLE "user" ALTER COLUMN "date_of_birth" SET DEFAULT '2021-11-19';
+DROP TABLE IF EXISTS "labreports";
+DROP TABLE IF EXISTS "subreports";

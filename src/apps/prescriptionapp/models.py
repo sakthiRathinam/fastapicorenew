@@ -252,15 +252,47 @@ class Diagonsis(models.Model):
     title = fields.CharField(max_length=1000, unique=True)
     active = fields.BooleanField(default=False)
     
-
-    
     
 class MedicalReports(models.Model):
     created = fields.DatetimeField(auto_now_add=True)
     updated = fields.DatetimeField(auto_now=True)
     title = fields.CharField(max_length=1000, unique=True)
     active = fields.BooleanField(default=False)
-    
+class ClinicReports(models.Model):
+    created = fields.DatetimeField(auto_now_add=True)
+    updated = fields.DatetimeField(auto_now=True)
+    title = fields.CharField(max_length=1000, unique=True)
+    active = fields.BooleanField(default=True)
+    clinic: fields.ForeignKeyRelation[Clinic] = fields.ForeignKeyField(
+        "models.Clinic", related_name="clinicavailablereports", null=True, blank=True)
+    general_report: fields.ForeignKeyRelation[MedicalReports] = fields.ForeignKeyField(
+        "models.MedicalReports", related_name="generalreports")
+    price = fields.IntField(default=0)
+
+class SubReports(models.Model):
+    created = fields.DatetimeField(auto_now_add=True)
+    updated = fields.DatetimeField(auto_now=True)
+    status: AppointmentStatus = fields.CharEnumField(
+        AppointmentStatus, default=AppointmentStatus.Pending)
+    report: fields.ForeignKeyRelation[ClinicReports] = fields.ForeignKeyField(
+        "models.ClinicReports", related_name="medicalclinicreports",null=True, blank=True)
+    file = fields.TextField(null=True, blank=True, max_length=4000)
+    expected_result = fields.DatetimeField(null=True,blank=True)
+    report_name = fields.CharField(max_length=1200, null=True, blank=True)
+
+class LabReports(models.Model):
+    created = fields.DatetimeField(auto_now_add=True)
+    updated = fields.DatetimeField(auto_now=True)
+    active = fields.BooleanField(default=True)
+    user: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
+    "models.User", related_name="userlabreports")
+    clinic: fields.ForeignKeyRelation[Clinic] = fields.ForeignKeyField(
+    "models.Clinic", related_name="cliniclabreports", null=True, blank=True)
+    expected_result = fields.DatetimeField(null=True, blank=True)
+    sub_reports: fields.ManyToManyRelation["SubReports"] = fields.ManyToManyField(
+        "models.SubReports", related_name="mainreport")
+    total_price = fields.IntField(default=0)
+
 class PresMedicines(models.Model):
     created = fields.DatetimeField(auto_now_add=True)
     updated = fields.DatetimeField(auto_now=True)

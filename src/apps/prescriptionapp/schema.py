@@ -5,11 +5,33 @@ from fastapi import UploadFile,File
 from datetime import date, datetime, time, timedelta
 from .pydanticmodels import Create_PresMedicines, Create_Timings
 from .models import AppointmentStatus, MedicineTypes
+from src.apps.users.models import User_Pydantic
 from src.apps.users.models import Sex
+from fastapi import APIRouter, Depends, BackgroundTasks, Response, status, Request, File, UploadFile, Body
+
 class AddDoctor(BaseModel):
     clinic: int
     doctor: int
     owner: Optional[bool] = False
+    
+class UserMainEdit(BaseModel):
+    first_name:Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    mobile: Optional[str] = None
+    address: Optional[str] = None
+    sex: Optional[Sex] = None
+    qualifications: Optional[List[str]] = None
+    health_issues: Optional[List[str]] = None
+    specialization: Optional[List[str]] = None
+    date_of_birth: Optional[date] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    doctor_fees: Optional[int] = None
+class EditUser(BaseModel):
+    data: UserMainEdit
+    user: int
     
     
 class AddRecopinist(BaseModel):
@@ -49,7 +71,18 @@ class PatientCreation(BaseModel):
     sex: str
     health_issues: Optional[List[str]] = []
     last_name: Optional[str] = None
-    dob: date
+    is_child: Optional[bool] = False
+    date_of_birth: date
+
+class EditClinicReport(BaseModel):
+    price:int
+    active:Optional[bool] = True
+    
+class CreateClinicReports(BaseModel):
+    clinic_id: int
+    general_report_id: int
+    price: int
+    title: str
 class CreateTemplate(BaseModel):
     diagonsis:str
     command:str
@@ -119,7 +152,16 @@ class BulkSlot(BaseModel):
     clinic_id: int
     doctor_id: int
     
-
+class CreateSubReport(BaseModel):
+    report: str
+    expected_result: Optional[datetime] = datetime.now()
+class CreateLabReport(BaseModel):
+    active :Optional[bool] = True
+    user_id:int
+    clinic_id:int
+    expected_result:Optional[datetime] = datetime.now()
+    sub_reports:List[CreateSubReport]
+    
     
 class AppointmentCreation(BaseModel):
     user_id:Optional[int] = None

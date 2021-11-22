@@ -16,6 +16,7 @@ class Roles(str,Enum):
     PharmacyOwner = "PharmacyOwner"
     LabOwner = "LabOwner"
     Admin = "Admin"
+    Animal = "Animal"
 
 
 class InventoryCategory(str, Enum):
@@ -34,7 +35,6 @@ class Sex(str, Enum):
     Female = "Female"
     TransGender = "TransGender"
     Others = "Others"
-    Dog = "Dog"
     
 
 class Inventory(models.Model):
@@ -72,11 +72,13 @@ class User(models.Model):
     permissions: fields.ManyToManyRelation["Permissions"] = fields.ManyToManyField(
         "models.Permissions", related_name="permissions", through="user_permissions"
     )
-    mobile = fields.CharField(max_length=15,null=True,blank=True)
+    mobile = fields.CharField(max_length=15,null=True,blank=True,index=True)
     roles: Roles = fields.CharEnumField(Roles, default=Roles.Patient)
     sex: Sex = fields.CharEnumField(Sex, default=Sex.Male)
     password = fields.CharField(max_length=100)
     first_name = fields.CharField(max_length=100,default="")
+    animal_type = fields.CharField(max_length=1000,default="")
+    animal_breed = fields.CharField(max_length=1000,default="")
     last_name = fields.CharField(max_length=100, null=True,default="")
     city = fields.CharField(max_length=800, null=True,default="")
     state = fields.CharField(max_length=800, null=True,default="")
@@ -91,9 +93,11 @@ class User(models.Model):
     notificationIds = StringArrayField(null=True,blank=True)
     last_login = fields.DatetimeField(null=True)
     experience = fields.IntField(null=True,blank=True)
+    doctor_fees = fields.IntField(default=0)
     is_active = fields.BooleanField(default=True)
     is_staff = fields.BooleanField(default=False)
     currently_active = fields.BooleanField(default=False)
+    is_child = fields.BooleanField(default=False)
     display_picture = fields.CharField(max_length=2000, default="")
     is_superuser = fields.BooleanField(default=False)
     avatar = fields.CharField(max_length=1000, null=True)

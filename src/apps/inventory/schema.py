@@ -4,6 +4,8 @@ from typing import List, Optional
 from fastapi import UploadFile, File
 from datetime import date, datetime, time, timedelta
 from src.apps.users.models import Sex
+from enum import Enum, IntEnum
+
 # class Inventory(BaseModel):
 #     morning_count: int = 0
 #     afternoon_count: int = 0
@@ -17,6 +19,25 @@ from src.apps.users.models import Sex
 #     is_given: Optional[bool] = False
 #     days: int = 0
 #     medicine: int
+
+
+class MedicineTypes(str, Enum):
+    Liquid = "Liquid"
+    Tablet = "Tablet"
+    Capsules = "Capsules"
+    Cream = "Cream"
+    Powder = "Powder"
+    Lotion = "Lotion"
+    Soap = "Soap"
+    Shampoo = "Shampoo"
+    Suspension = "Suspension"
+    Serum = "Serum"
+    Oil = "Oil"
+    Inhalers = "Inhalers"
+    Injections = "Injections"
+    Suppositories = "Suppositories"
+    Solution = "Solution"
+    Others = "Others"
 class AddMedicine(BaseModel):
     name: str
     inventory: int
@@ -28,8 +49,14 @@ class NormalMedicine(BaseModel):
     clinic: int
     price: float
     main_medicine:int
+    medicine_type: MedicineTypes
     active: Optional[bool] = False
 class Inventory(BaseModel):
+    clinic: int
+    title: str
+    medicines: Optional[List[AddMedicine]] = []
+class ClinicRack(BaseModel):
+    inventory: int
     clinic: int
     title: str
     medicines: Optional[List[AddMedicine]] = []
@@ -40,6 +67,12 @@ class ClinicMedicine(BaseModel):
     max_price: float
     price: float
     min_qty : float
+    medicine_type: MedicineTypes
+    subbox_per_boxes: int
+    piece_per_subboxes:int
+    total_boxes: int
+    total_subboxes: int
+    total_loose : int
     indication_qty: float
     total_qty: float
     is_drug: bool
@@ -48,9 +81,17 @@ class ClinicMedicine(BaseModel):
 class AvailableMedicine(BaseModel):
     medicine: str
     quantity: float
+    medicine_type: MedicineTypes
 class CheckAvailable(BaseModel):
     medicines: List[AvailableMedicine]
     clinic: int
+    
+class ClinicInventory(BaseModel):
+    clinic: int
+    title: str
+    racks: Optional[List[str]] = None
+    
+    
     
     
 

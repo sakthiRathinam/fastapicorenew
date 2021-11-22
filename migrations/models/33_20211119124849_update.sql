@@ -1,0 +1,10 @@
+-- upgrade --
+ALTER TABLE "user" ADD "animal_breed" VARCHAR(1000) NOT NULL  DEFAULT '';
+ALTER TABLE "user" ADD "animal_type" VARCHAR(1000) NOT NULL  DEFAULT '';
+ALTER TABLE "user" ALTER COLUMN "sex" TYPE VARCHAR(11) USING "sex"::VARCHAR(11);
+ALTER TABLE "user" ALTER COLUMN "roles" TYPE VARCHAR(17) USING "roles"::VARCHAR(17);
+-- downgrade --
+ALTER TABLE "user" DROP COLUMN "animal_breed";
+ALTER TABLE "user" DROP COLUMN "animal_type";
+ALTER TABLE "user" ALTER COLUMN "sex" TYPE VARCHAR(11) USING "sex"::VARCHAR(11);
+ALTER TABLE "user" ALTER COLUMN "roles" TYPE VARCHAR(17) USING "roles"::VARCHAR(17);

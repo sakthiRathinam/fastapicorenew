@@ -1,3 +1,4 @@
+from fastapi import FastAPI, Header
 import uuid
 from fastapi import APIRouter, Depends, BackgroundTasks, Response, status, Request
 from typing import List
@@ -57,15 +58,57 @@ async def save_cookie_user(response: Response, request: Request, username: str =
                 {"username": username, "expires": str(expire)}, SECRET_KEY)
             print(response)
             response.set_cookie("session", token)
-            return {"success":"login successfully","user":user}
+            return {"success":"login successfully","user":user,"csrf":token}
         else:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Invalid user or password"
             )
+
+
+@user_router.get('/getLinkedAccounts')
+async def get_linked_accounts(mobile:str,id:int):
+    linked_accounts = await User.filter(mobile=mobile).exclude(id=id)
+    return linked_accounts
+    
 def get_current_login(session:str = Depends(cookie_sec)):
     try:
         data = jwt.decode(session, SECRET_KEY)
-        print(data)
+        print(data,"aefeafaefafds")
+        date = data['expires'].split("-")
+        expiry_date = datetime(int(date[0]),int(date[1]),int(date[2]))
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authentication"
+        )
+    if expiry_date < datetime.now():
+        print("heree")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Token Expires Login Again"
+        )
+    return data['username']
+
+
+async def get_current_session_user(csrf: str = Header(...)):
+    try:
+        data = jwt.decode(csrf, SECRET_KEY)
+        print(data, "aefeafaefafds")
+        date = data['expires'].split("-")
+        expiry_date = datetime(int(date[0]), int(date[1]), int(date[2]))
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authentication"
+        )
+    if expiry_date < datetime.now():
+        print("heree")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Token Expires Login Again"
+        )
+    user_obj = await User.get(username=data['username'])
+    return user_obj
+    
+def get_session_current_login(csrf:str = Header(...)):
+    try:
+        data = jwt.decode(csrf, SECRET_KEY)
         date = data['expires'].split("-")
         expiry_date = datetime(int(date[0]),int(date[1]),int(date[2]))
     except Exception:
@@ -81,8 +124,7 @@ def get_current_login(session:str = Depends(cookie_sec)):
     
         
 @user_router.get('/checkSession')
-def check_session(session: str = Depends(get_current_login)) -> str:
-    print(session,"imhereee")
+def check_session(session: str = Depends(get_session_current_login)) -> str:
     return "session available"
 
 
@@ -189,8 +231,11 @@ async def search_users(role: Roles, name: str, user : str=Depends(get_current_lo
     return toReturn[:5]
 @user_router.get('/searchMobileUsers')
 async def search_users(role: Roles, mobile: str, user : str=Depends(get_current_login)):
-    toReturn = await User.filter(roles=role, mobile__istartswith=mobile).only('id', 'username', 'first_name', 'last_name', 'mobile', 'date_of_birth', 'health_issues', 'sex')
-    return toReturn[:5]
+    if len(mobile) >= 10:
+        toReturn = await User.filter(roles=role, mobile__istartswith=mobile).only('id', 'username', 'first_name', 'last_name', 'mobile', 'date_of_birth', 'health_issues', 'sex')
+        return toReturn
+    else:
+        raise HTTPException(status=HTTP_500_BAD_REQUEST,detail="mobile number should be atleast 10 digits")
 
 
 @user_router.post('/addClinicverification')
