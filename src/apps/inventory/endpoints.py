@@ -15,6 +15,7 @@ from src.config.mongo_conf import virtual_database, local_database
 from src.config.settings import BASE_DIR, STATIC_ROOT, MEDIA_ROOT
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from .service import get_sequence, get_embedded_size, mongo_limited_data_embedded
 import pathlib
 from bson import ObjectId
 from bson.json_util import dumps
@@ -27,41 +28,93 @@ medical_extra_router = APIRouter()
 @medical_extra_router.post("/createMedicalInventory")
 async def create_inventory(data: Inventory):
     data = data.dict()
-    max_id = await virtual_database.inventory.find().sort("_id", -1).to_list(1)
-    if max_id:
-        data['_id'] = max_id[0]['_id'] + 1
-    else:
-        data['_id'] = 1
+    data['_id'] = await get_sequence("inventory")
     data_obj = await virtual_database.inventory.insert_one(data)
     return {"success": "inventory added successfully"}
+
 @medical_extra_router.post("/createClinicInventory")
 async def create_clinic_inventory(data: ClinicInventory):
     data = data.dict()
-    max_id = await virtual_database.main_inventory.find().sort("_id", -1).to_list(1)
-    if max_id:
-        data['_id'] = max_id[0]['_id'] + 1
-    else:
-        data['_id'] = 1
+    data['_id'] = await get_sequence("main_inventory")
+    # max_id = await virtual_database.main_inventory.find({},{}).sort("_id", -1).to_list(1)
+    # if max_id:
+    #     data['_id'] = max_id[0]['_id'] + 1
+    # else:
+    #     data['_id'] = 1
     data_obj = await virtual_database.main_inventory.insert_one(data)
-    return {"success": "inventory added successfully"}
+    return {"success": "inventory added successfully","data_obj":data_obj.inserted_id}
 
 @medical_extra_router.post("/createClinicRacks")
-async def create_clinic_inventory(data: ClinicRack):
+async def create_clinic_racks(data: ClinicRack):
     data = data.dict()
-    max_id = await virtual_database.main_inventory.find().sort("_id", -1).to_list(1)
-    if max_id:
-        data['_id'] = max_id[0]['_id'] + 1
-    else:
-        data['_id'] = 1
-    data_obj = await virtual_database.main_inventory.insert_one(data)
-    return {"success": "inventory added successfully"}
+    data['_id'] = await get_sequence("clinicracks")
+    # max_id =  virtual_database.clinicracks.find({},{}).sort("_id", -1).to_list(1)
+    # if max_id:
+    #     data['_id'] = max_id[0]['_id'] + 1
+    # else:
+    #     data['_id'] = 1
+    data_obj = await virtual_database.clinicracks.insert_one(data)
+    updating_obj = await virtual_database.main_inventory.update_one({"_id": data['inventory']}, {"$push": {"racks":{"title":data['title'],"id":data_obj.inserted_id}}})
+    return {"success": "rack added successfully"}
 
 
 
+# @medical_extra_router.post("/")
 
-@medical_extra_router.get("/getClinicInventory")
-async def get_clinic_inventory():
-    pass
+
+@medical_extra_router.post("/createRackMedicines")
+async def create_clinic_racks(data: ClinicMedicine):
+    data = data.dict()
+    inv_obj = await virtual_database.main_inventory.update_one({"_id": data['inventory']}, {"$addToSet": {"available_medicines": data['name']}})
+    if not inv_obj.modified_count:
+        raise HTTPException(
+            status_code=status.HTTP_500_BAD_REQUEST, detail="medicine already available update that or delete and add"
+            )    
+    rack_id = data.pop('rack')
+    updating_obj = await virtual_database.clinicracks.update_one({"_id": rack_id}, {"$push": {"medicines": data}})
+    return {"updated":"medicine added successfully"}
+
+@medical_extra_router.put('/updateRackMedicines')
+async def update_rack_medicines(data:ClinicMedicine):
+    data = data.dict()
+    rack_id = data.pop("rack")
+    deleted_obj = await virtual_database.clinicracks.update_one({"_id":rack_id},{"$pull":{"medicines":{"name":data['name']}}})
+    updated_obj = await virtual_database.clinicracks.update_one({"_id": rack_id}, {"$push": {"medicines": data}})
+    if updated_obj.modified_count:
+        return "medicine updated successfully"
+    
+
+@medical_extra_router.delete('/deleteRackMedicines')
+async def delete_medicines(inventory:int,name:str,rack:int):
+    delete_set = await virtual_database.main_inventory.update_one({"_id": inventory}, {"$pull": {"available_medicines": name}})
+    delete_medicine = await virtual_database.clinicracks.update_one({"_id": rack}, {"$pull": {"medicines": {"name": name}}})
+    return "medicine deleted successfully"
+
+
+@medical_extra_router.delete('/deleteRack')
+async def delete_medicines(rack: int):
+    delete_rack = await virtual_database.clinicracks.delete_one({"_id":rack})
+    return "rack deleted successfully"
+
+
+@medical_extra_router.get('/getRackMedicines')
+async def get_racks(rack:int,limit:Optional[int]=10,offset:Optional[int]=0):
+    limited_data = await mongo_limited_data_embedded(virtual_database.clinicracks, rack, "medicines",limit=limit,offset=offset)
+    return limited_data
+
+@medical_extra_router.get('/getRacks')
+async def get_racks(rack:int,limit:Optional[int]=10,offset:Optional[int]=0):
+    limited_data = await mongo_limited_data_embedded(virtual_database.main_inventory, rack, "medicines",limit=limit,offset=offset)
+    return limited_data
+    
+    
+    
+    
+    
+    
+    
+    
+
 @medical_extra_router.post("/createClinicSubInventory")
 async def create_inventory(data: Inventory):
     data = data.dict()
@@ -71,9 +124,15 @@ async def create_inventory(data: Inventory):
     else:
         data['_id'] = 1
     data_obj = await virtual_database.inventory.insert_one(data)
-    return {"success": "inventory added successfully"}
+    pdating_obj = await virtual_database.inventory.update_one({"_id": inventory}, {"$push": {"racks": data['title']}})
+    return {"success": "rack added successfully"}
 
 @medical_extra_router.post("/getInventory")
+async def create_inventory(clinic: int):
+    inv_obj = await virtual_database.inventory.find_one({"clinic": clinic}, {'medicines': {'$slice': [0, 5]}})
+    return inv_obj
+
+@medical_extra_router.post("/getClinicInventory")
 async def create_inventory(clinic: int):
     inv_obj = await virtual_database.inventory.find_one({"clinic": clinic}, {'medicines': {'$slice': [0, 5]}})
     return inv_obj

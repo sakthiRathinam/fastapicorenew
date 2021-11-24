@@ -35,6 +35,8 @@ Create_LabReports = pydantic_model_creator(
     LabReports, name="labreports", exclude=("id", "created", "updated"))
 Create_ClinicReports = pydantic_model_creator(
     ClinicReports, name="clinicreports", exclude=("id", "created", "updated", "active"))
+Create_IssuePrescription = pydantic_model_creator(
+    IssuePrescription, name="issueprescriptions", exclude=("id", "created", "updated"))
 # Create_ClinicVerification = pydantic_model_creator(
 #     ClinicVerification, name="clinicverification", exclude=("id", "created", "updated", 'verified'))
 GET_Clinic = pydantic_model_creator(
@@ -67,6 +69,8 @@ GET_SubReports = pydantic_model_creator(
     SubReports, name="getsubreports")
 GET_ClinicReports = pydantic_model_creator(
     ClinicReports, name="getclinicreports")
+GET_IssuePrescription = pydantic_model_creator(
+    IssuePrescription, name="getissueprescriptions")
 
 # GET_ClinicVerification = pydantic_model_creator(
 #     ClinicVerification, name="ClinicVerification")

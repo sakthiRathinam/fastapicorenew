@@ -279,6 +279,8 @@ class SubReports(models.Model):
     file = fields.TextField(null=True, blank=True, max_length=4000)
     expected_result = fields.DatetimeField(null=True,blank=True)
     report_name = fields.CharField(max_length=1200, null=True, blank=True)
+    price = fields.IntField(default=0)
+
 
 class LabReports(models.Model):
     created = fields.DatetimeField(auto_now_add=True)
@@ -347,12 +349,26 @@ class Prescription(models.Model):
     receponist: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
         "models.User", related_name="recoptinistcreated", null=True, blank=True)
     gst_percentage = fields.FloatField(default=0)
+    blood_sugar = fields.FloatField(default=0)
+    blood_pressure = fields.FloatField(default=0)
+    weight = fields.FloatField(default=0)
+    invalid_till = fields.DateField(null=True, blank=True)
     doctor_fees = fields.FloatField(default=0)
     age = fields.IntField(default=0)
     next_visit = fields.DateField(null=True, blank=True)
     contains_drug = fields.BooleanField(default=False)
     is_template = fields.BooleanField(default=False)
     
+class IssuePrescription(models.Model):
+    created = fields.DatetimeField(auto_now_add=True)
+    updated = fields.DatetimeField(auto_now=True)
+    user: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
+        "models.User", related_name="userrecievedprescriptions")
+    clinic: fields.ForeignKeyRelation[Clinic] = fields.ForeignKeyField(
+        "models.Clinic", related_name="clinicissuedprescriptions")
+    prescription: fields.ForeignKeyRelation[Prescription] = fields.ForeignKeyField(
+        "models.Prescription", related_name="issuedprescriptions")
+    contains_drug = fields.BooleanField(default=False)
 class PrescriptionTemplates(models.Model):
     created = fields.DatetimeField(auto_now_add=True)
     updated = fields.DatetimeField(auto_now=True)

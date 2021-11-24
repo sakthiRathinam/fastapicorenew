@@ -31,8 +31,6 @@ async def getClinics(userid: int):
     user = await User.get(id=userid).prefetch_related("workingclinics")
     clinics = [{"name": clinic.name, "email": clinic.email}async for clinic in user.workingclinics.all()]
 
-
-
 @clinto_router.post('/createClinic')
 async def createClinic(clinic: Create_Clinic = Body(...),zone_id:Optional[int]=Body(...)):
     if zone_id is None:
@@ -49,9 +47,6 @@ async def createClinic(clinic: Create_Clinic = Body(...),zone_id:Optional[int]=B
     # print(file.filename)
     # print(create_clinic)
     return clinic_obj
-
-
-    
     
 @clinto_router.get('/getClinics')
 async def get_clinics(limit: int = 10, offset: int = 0, type: Optional[Types] = Types.Clinic,id:Optional[int]=None):
@@ -97,8 +92,6 @@ async def edit_password(newpassword: str = Body(...), user:int=Body(...),oldpass
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN, detail="Wrong Old Password"
     )
-    
-    
 
 @clinto_router.put('/editUser')
 async def edit_user(data: EditUser):
@@ -126,9 +119,6 @@ async def edit_user(data: EditUser):
     await user_obj.save()
     return user_obj
     
-    
-    
-
 @clinto_router.delete('/deleteClinic/{clinic}')
 async def edit_clinic(clinic:int):
     updated_clinic = await Clinic.get(id=clinic).delete()
@@ -154,8 +144,7 @@ async def add_doctors(data: Create_Recopinist, user: User_Pydantic, clinic: int 
         user_id = user.id
     else:
         user = await user_service.create_user(user)
-        user_id = user['id']
-    print(user_id)
+        user_id = user.id
     create_recopinist = await ClinicReceponists.create(clinic_id=clinic, user_id=user_id, **data.dict(exclude_unset=True))
     return create_recopinist
 
@@ -176,6 +165,7 @@ async def clinic_images(clinic: int,files: List[UploadFile] = File(...)):
     clinic_obj.clinic_images = file_paths
     await clinic_obj.save()
     return clinic_obj
+
 @clinto_router.post("/addTimings")
 async def add_timings(timings: List[Create_Timings],clinic: bool=Body(...), clinicid: int=Body(...)):
     if clinic:
@@ -205,6 +195,16 @@ async def get_doctor_clinics(doctor:int):
 async def get_lab_clinics(owner:int):
     owner_obj = await User.get(id=owner).prefetch_related("labownerusers")
     working_clinics = await owner_obj.labownerusers.all().prefetch_related("clinic")
+    clinics_list = []
+    for clinics in working_clinics:
+        clinic = await clinics.clinic
+        clinics_list.append({"clinic":clinic,"details":clinics})
+    return {"working_clinics": clinics_list,"user":owner_obj}
+
+@clinto_router.get("/getPharOwnerClinics")
+async def get_phar_owners_clinics(owner:int):
+    owner_obj = await User.get(id=owner).prefetch_related("pharmacyownersusers")
+    working_clinics = await owner_obj.pharmacyownersusers.all().prefetch_related("clinic")
     clinics_list = []
     for clinics in working_clinics:
         clinic = await clinics.clinic
@@ -402,7 +402,7 @@ async def add_prescription(data:AddPrescription):
                 hashed_password = get_password_hash(
                     user_dict.pop('password'))
                 user_obj = await User.create(**user_dict, password=hashed_password)
-            pres_obj = await Prescription.create(clinic=clinic_obj, doctor=doctor_obj, user=user_obj, doctor_fees=data.doctor_fees, next_visit=data.next_visit, reason=data.reason,age=age(user_obj.date_of_birth))
+            pres_obj = await Prescription.create(clinic=clinic_obj, doctor=doctor_obj, user=user_obj, doctor_fees=data.doctor_fees, next_visit=data.next_visit, reason=data.reason,age=age(user_obj.date_of_birth),blood_sugar=data.blood_sugar,blood_pressure=data.blood_pressure,weight=data.weight)
             for diag in data.medicines:
                 diag_obj,created = await Diagonsis.get_or_create(title=diag.diagonsis)
                 if diag.template:
@@ -421,8 +421,10 @@ async def add_prescription(data:AddPrescription):
                     if diag.template:
                         await pres_template.medicines.add(medicine_obj)
                 await pres_obj.diagonsis_list.add(diag_obj)
+            if data.invalid_till is not None:
+                pres_obj.invalid_till = data.invalid_till
+                pres_obj.contains_drug = True
             for report in data.reports:
-                print(report)
                 report_obj,created = await MedicalReports.get_or_create(title=report)
                 await pres_obj.medical_reports.add(report_obj)
             await pres_obj.save()
@@ -450,7 +452,6 @@ async def get_prescriptions(clinic:Optional[int]=None,doctor:Optional[int]=None,
             pres_objs = await prescription_view.limited_data(limit=limit, offset=offset, doctor_id=doctor,created__istartswith=str(created))
     else:
         pres_objs = await prescription_view.limited_data(limit=limit, offset=offset, user_id=user,active=True)
-        
     to_send = []
     for pres in pres_objs['data']:
         clinic = None
@@ -467,7 +468,40 @@ async def get_prescriptions(clinic:Optional[int]=None,doctor:Optional[int]=None,
         to_send.append(pres_full)
     pres_objs['data'] = to_send
     return pres_objs
-        
+@clinto_router.get('/getPrescriptions/{id}')
+async def get_single_prescriptions(id:int):
+        pres = await Prescription.get(id=id)
+        clinic = None
+        receponist = None
+        doctor = None
+        user = await pres.user
+        if pres.clinic_id is not None:
+            clinic = await pres.clinic
+        if pres.doctor_id is not None:
+            doctor = await pres.doctor
+        if pres.receponist is not None:
+            receponist = await pres.receponist
+        pres_full = {"main_data": pres, "medicines_given": await pres.medicines.filter(is_given=True).only('morning_count', 'afternoon_count', 'invalid_count', 'night_count', 'qty_per_time','diagonsisName', 'total_qty', 'command', 'medicine_name', 'is_drug', 'before_food', 'is_given', 'days', 'medicine_id', 'medicine_type'), "pres_medicines": await pres.medicines.filter(is_given=False).only('morning_count', 'afternoon_count', 'invalid_count', 'night_count', 'qty_per_time', 'total_qty', 'diagonsisName','command', 'medicine_name', 'is_drug', 'before_food', 'is_given', 'days', 'medicine_id', 'medicine_type'),"clinic":{"name":clinic.name,"mobile":clinic.mobile,"email":clinic.email,"address":clinic.address,"lat":clinic.lat,"lang":clinic.lang,"lat":clinic.lat,"lang":clinic.lang,"pincode":clinic.pincode,"city":clinic.city} if clinic is not None else None,"user":{"name":user.first_name + " "+user.last_name,"mobile":user.mobile,"id":user.id,"age":age(user.date_of_birth),"sex":user.sex,"health_issues":user.health_issues,"dob":user.date_of_birth},"doctor":{"name":doctor.first_name + " "+doctor.last_name,"id":doctor.id,"mobile":doctor.mobile,"email":doctor.email,"specialization":doctor.specialization} if doctor is not None else None,"diagonsis_list":[diag.title async for diag in  pres.diagonsis_list],"created_by":doctor.first_name + " " + doctor.last_name if receponist is None else recponist.first_name + " " + recoponist.last_name,"suggested_reports":[report.title for report in await pres.medical_reports.all()]}
+        return pres_full
+@clinto_router.get('/searchPrescriptions')
+async def search_prescriptions(search:Optional[int]=None):
+    pres_objs = await Prescription.filter(
+        Q(user__mobile=str(search)) | Q(id=search)).filter(invalid_till__gt=datetime.date.today())
+    to_send = []
+    for pres in pres_objs:
+        clinic = None
+        receponist = None
+        doctor = None
+        user = await pres.user
+        if pres.clinic_id is not None:
+            clinic = await pres.clinic
+        if pres.doctor_id is not None:
+            doctor = await pres.doctor
+        if pres.receponist is not None:
+            receponist = await pres.receponist
+        pres_full = {"main_data": pres, "medicines_given": await pres.medicines.filter(is_given=True).only('morning_count', 'afternoon_count', 'invalid_count', 'night_count', 'qty_per_time','diagonsisName', 'total_qty', 'command', 'medicine_name', 'is_drug', 'before_food', 'is_given', 'days', 'medicine_id', 'medicine_type'), "pres_medicines": await pres.medicines.filter(is_given=False).only('morning_count', 'afternoon_count', 'invalid_count', 'night_count', 'qty_per_time', 'total_qty', 'diagonsisName','command', 'medicine_name', 'is_drug', 'before_food', 'is_given', 'days', 'medicine_id', 'medicine_type'),"clinic":{"name":clinic.name,"mobile":clinic.mobile,"email":clinic.email,"address":clinic.address,"lat":clinic.lat,"lang":clinic.lang,"lat":clinic.lat,"lang":clinic.lang,"pincode":clinic.pincode,"city":clinic.city} if clinic is not None else None,"user":{"name":user.first_name + " "+user.last_name,"mobile":user.mobile,"id":user.id,"age":age(user.date_of_birth),"sex":user.sex,"health_issues":user.health_issues,"dob":user.date_of_birth},"doctor":{"name":doctor.first_name + " "+doctor.last_name,"id":doctor.id,"mobile":doctor.mobile,"email":doctor.email,"specialization":doctor.specialization} if doctor is not None else None,"diagonsis_list":[diag.title async for diag in  pres.diagonsis_list],"created_by":doctor.first_name + " " + doctor.last_name if receponist is None else recponist.first_name + " " + recoponist.last_name,"suggested_reports":[report.title for report in await pres.medical_reports.all()]}
+        to_send.append(pres_full)
+    return to_send
 @clinto_router.get('/searchDiagonsis')
 async def search_diagonsis(name:str,doctor:int):
     diagonsis_objs = await Diagonsis.filter(title__istartswith=name).only('title','active','id')
@@ -625,7 +659,7 @@ async def filterPharOwners(clinic_id:Optional[int]=None,user_id:Optional[int]=No
         user = await owner.user
         user_obj = {"name":user.first_name + " "+user.last_name,"mobile":user.mobile,"dp":user.display_picture}
         owner_list.append({"owner":owner,"userdetail":user_obj})
-    return {**owners, "data": owner_list}
+    return {"data": owner_list}
 
 @clinto_router.get('/getPharOwners')
 async def get_phar_owners(limit:int=10,offset:int=0):
@@ -674,12 +708,6 @@ async def filter_lab_owners(clinic_id: Optional[int] = None, user_id: Optional[i
                     "mobile": user.mobile, "dp": user.display_picture}
         owner_list.append({"owner": owner, "userdetail": user_obj})
     return  owner_list
-
-
-
-
-
-
 
 @clinto_router.get('/mainMedicines')
 async def main_medicines(limit:int=10,offset:int=0,active:bool=True,search:bool=False):
@@ -738,11 +766,21 @@ async def delete_clinic_reports(id:int):
 async def add_medicines(data: CreateLabReport):
     report_obj = data.dict()
     sub_reports = report_obj.pop('sub_reports')
+    if data.user_id is  None:
+        user_dict = report_obj.pop('user_create')
+        hashed_password = get_password_hash(
+            user_dict.pop('password'))
+        user_obj = await User.create(**user_dict, password=hashed_password)
+        report_obj['user_id'] = user_obj.id
     lab_report = await LabReports.create(**report_obj)
+    total = 0
     for report in sub_reports:
-        report_obj, created = await ClinicReports.get(title=report)
-        sub_report = await SubReports.create(report_id=report_obj.id, expected_result=report['expected_result'],report_name=report)
+        report_obj = await ClinicReports.get(id=report['report'])
+        sub_report = await SubReports.create(report_id=report_obj.id, expected_result=report['expected_result'], report_name=report_obj.title,price=report_obj.price)
+        total += report_obj.price
         await lab_report.sub_reports.add(sub_report)
+    lab_report.total_price = total
+    await lab_report.save()
     return {"success": "report created successfully", "report_obj": lab_report}
 
 @clinto_router.delete('/deleteReports')
@@ -786,12 +824,12 @@ async def edit_sub_reports(subreport:int,file:Optional[UploadFile] = File(...)):
     sub_report = await SubReports.get(id=subreport)
     sample_uuid = uuid.uuid4()
     path = pathlib.Path(
-        MEDIA_ROOT, f"reportimages/{str(sample_uuid)+dp.filename}")
+        MEDIA_ROOT, f"reportimages/{str(sample_uuid)+file.filename}")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with path.open('wb') as write:
-        shutil.copyfileobj(dp.file, write)
+        shutil.copyfileobj(file.file, write)
     sub_report.file = path
-    sub_report.status = Completed
+    sub_report.status = 'Completed'
     await sub_report.save()
     
 @clinto_router.put('/removeSubReport')
@@ -824,11 +862,23 @@ async def get_reports(limit: int = 10, offset:int = 0,clinic:Optional[int]=None,
         if report.user_id is not None:
             user = await report.user
         data = {
-            "main_data":report,"clinic":{"name":clinic.name,"mobile":clinic.mobile,"email":clinic.email,"address":clinic.address,"lat":clinic.lat,"lang":clinic.lang,"lat":clinic.lat,"lang":clinic.lang,"pincode":clinic.pincode,"city":clinic.city} if clinic is not None else None,"user":{"name":user.first_name + " "+user.last_name,"mobile":user.mobile,"id":user.id,"age":age(user.date_of_birth),"sex":user.sex,"health_issues":user.health_issues,"dob":user.date_of_birth} if user is not None else None,"subreports":[{"file":subreport.file,"expected_result":subreport.expected_result,"id":subreport.id,"report":subreport.report_name}for subreport in await report.sub_reports.all()]
+            "main_data":report,"clinic":{"name":clinic.name,"mobile":clinic.mobile,"email":clinic.email,"address":clinic.address,"lat":clinic.lat,"lang":clinic.lang,"lat":clinic.lat,"lang":clinic.lang,"pincode":clinic.pincode,"city":clinic.city} if clinic is not None else None,"user":{"name":user.first_name + " "+user.last_name,"mobile":user.mobile,"id":user.id,"age":age(user.date_of_birth),"sex":user.sex,"health_issues":user.health_issues,"dob":user.date_of_birth} if user is not None else None,"subreports":[{"file":subreport.file,"expected_result":subreport.expected_result,"id":subreport.id,"report":subreport.report_name,"price":subreport.price}for subreport in await report.sub_reports.all()]
         }
         report_data.append(data)
     reports['data'] = report_data
     return reports
+
+@clinto_router.get('/getLabReports/{id}/')
+async def get_single_reports(id:int):
+    report = await LabReports.get(id=id)
+    if report.clinic_id is not None:
+        clinic = await report.clinic
+    if report.user_id is not None:
+        user = await report.user
+    data = {
+        "main_data":report,"clinic":{"name":clinic.name,"mobile":clinic.mobile,"email":clinic.email,"address":clinic.address,"lat":clinic.lat,"lang":clinic.lang,"lat":clinic.lat,"lang":clinic.lang,"pincode":clinic.pincode,"city":clinic.city} if clinic is not None else None,"user":{"name":user.first_name + " "+user.last_name,"mobile":user.mobile,"id":user.id,"age":age(user.date_of_birth),"sex":user.sex,"health_issues":user.health_issues,"dob":user.date_of_birth} if user is not None else None,"subreports":[{"file":subreport.file,"expected_result":subreport.expected_result,"id":subreport.id,"report":subreport.report_name,"price":subreport.price}for subreport in await report.sub_reports.all()]
+    }
+    return data
 
 @clinto_router.post('/createZones')
 async def add_medicines(data: Create_ClinicZones = Body(...)):
@@ -850,6 +900,7 @@ async def update_medicines(id: int, data: Create_ClinicZones = Body(...)):
 async def filter_medicines(name:str):
     zones = await ClinicZones.filter(title__istartswith=name)
     return zones
+
 @clinto_router.get('/getZones')
 async def get_zones(limit: int=10,offset:int=0):
     zones = await clinic_zones.limited_data(limit=limit,offset=offset)
@@ -867,7 +918,32 @@ async def paginate_mediciens(request: Request) -> any:
     return medicines
 
 
+@clinto_router.post('/issuePrescription')
+async def issue_prescription(data: IssuePres):
+    # pres_obj = await Prescription.get(id=data.prescription_id)
+    # if pres_obj.invalid_till is not None:
+    #     if datetime.date.today() > pres_obj.invalid_till:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_500_BAD_REQUEST, detail="Prescriptions is invalid canmot issue this prescription"
+    #         )    
+    pres_obj = await IssuePrescription.create(**data.dict())
+    return "prescription issued succcessfully"
+@clinto_router.get('/getIssuePrescription')
+async def get_issue_prescription(date:datetime.date,clinic:int,limit:Optional[int]=10,offset:Optional[int]=0):
+    issue_objs = await issue_prescription_view.limited_data(limit=limit, offset=offset, clinic_id=clinic, created__istartswith=str(date))
+    to_send = []
+    for issue in issue_objs['data']:
+        user = await issue.user
+        user_obj = {"name": user.first_name + " "+user.last_name,
+                    "mobile": user.mobile, "dp": user.display_picture,"age":age(user.date_of_birth),"sex":user.sex}
+        to_send.append({"main":issue,"user_detail":user_obj})
+    issue_objs['data'] = to_send
+    return issue_objs
 
+# @clinto_router.get('/issuePrescription')
+# async def issue_prescription(data: IssuePres):
+#     pres_obj = await IssuePrescription.create(**data.dict())
+#     return "prescription issued succcessfully"
 
 
 

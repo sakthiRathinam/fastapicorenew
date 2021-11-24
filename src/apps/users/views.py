@@ -156,7 +156,7 @@ async def verify_user(token: uuid.UUID):
     
 
 @user_router.get('/logout')
-async def logout(response: Response, request:Request,session: str = Depends(get_current_login)):
+async def logout(response: Response, request: Request, session: str = Depends(get_current_session_user)):
     user = await User.get(username=session)
     user.currently_active = False
     if 'notificationId' in request.headers:
@@ -226,11 +226,11 @@ def play_request(request: Request,item:int):
 
 
 @user_router.get('/searchUsers')
-async def search_users(role: Roles, name: str, user : str=Depends(get_current_login)):
+async def search_users(role: Roles, name: str, user: str = Depends(get_current_session_user)):
     toReturn = await User.filter(roles=role, first_name__istartswith=name).only('id','username','first_name','last_name')
     return toReturn[:5]
 @user_router.get('/searchMobileUsers')
-async def search_users(role: Roles, mobile: str, user : str=Depends(get_current_login)):
+async def search_users(role: Roles, mobile: str, user: str = Depends(get_current_session_user)):
     if len(mobile) >= 10:
         toReturn = await User.filter(roles=role, mobile__istartswith=mobile).only('id', 'username', 'first_name', 'last_name', 'mobile', 'date_of_birth', 'health_issues', 'sex')
         return toReturn

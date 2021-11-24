@@ -106,6 +106,12 @@ class AddPrescription(BaseModel):
     reports : Optional[List[str]] = []
     appointment: Optional[int] = None
     reason: Optional[str] = None
+    invalid_till: Optional[date] = None
+    blood_sugar: Optional[float] = 0
+    blood_pressure: Optional[float] = 0
+    weight: Optional[float] = 0
+    reason: Optional[str] = None
+    reason: Optional[str] = None
     
 
 class AddExistingDoctor(BaseModel):
@@ -153,11 +159,12 @@ class BulkSlot(BaseModel):
     doctor_id: int
     
 class CreateSubReport(BaseModel):
-    report: str
+    report: int
     expected_result: Optional[datetime] = datetime.now()
 class CreateLabReport(BaseModel):
     active :Optional[bool] = True
-    user_id:int
+    user_id:Optional[int] = None
+    user_create: Optional[PatientCreation] = None
     clinic_id:int
     expected_result:Optional[datetime] = datetime.now()
     sub_reports:List[CreateSubReport]
@@ -184,3 +191,7 @@ class EditAppointment(BaseModel):
     doctor_id:Optional[int] = None
     reason:Optional[str] = None
     
+class IssuePres(BaseModel):
+    user_id: int
+    clinic_id: int
+    prescription_id: int

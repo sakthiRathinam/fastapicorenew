@@ -6,3 +6,5 @@ def convert_book(obj):
         "description": obj['description'],
         "rating": obj['rating'],
     }
+
+

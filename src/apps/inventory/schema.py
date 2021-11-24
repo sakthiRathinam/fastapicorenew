@@ -65,6 +65,7 @@ class ClinicMedicine(BaseModel):
     name : str
     clinic : int
     max_price: float
+    inventory: int
     price: float
     min_qty : float
     medicine_type: MedicineTypes
@@ -76,6 +77,7 @@ class ClinicMedicine(BaseModel):
     indication_qty: float
     total_qty: float
     is_drug: bool
+    rack: int
     main_medicine: Optional[int] = None
     
 class AvailableMedicine(BaseModel):
@@ -85,11 +87,14 @@ class AvailableMedicine(BaseModel):
 class CheckAvailable(BaseModel):
     medicines: List[AvailableMedicine]
     clinic: int
-    
+
+class RackMin(BaseModel):
+    title: str
+    id: int    
 class ClinicInventory(BaseModel):
     clinic: int
     title: str
-    racks: Optional[List[str]] = None
+    racks:Optional[List[RackMin]] = [] 
     
     
     
