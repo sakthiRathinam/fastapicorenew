@@ -195,3 +195,16 @@ class IssuePres(BaseModel):
     user_id: int
     clinic_id: int
     prescription_id: int
+
+
+class NormalMedicine(BaseModel):
+    name: str
+    inventory: int
+    price: float
+    main_medicine: Optional[int] = None
+    medicine_type: MedicineTypes
+    medicine_verifed: Optional[bool] = False
+    active: Optional[bool] = False
+    is_medical: Optional[bool] = True
+
+

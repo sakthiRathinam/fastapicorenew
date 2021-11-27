@@ -34,6 +34,7 @@ BACKEND_CORS_ORIGINS = [
     '*',
     "http://192.168.29.242",
 ]
+testing = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFiaSIsImV4cGlyZXMiOiIyMDIxLTEyLTI5In0.neEWBQp1hAHmSEuq52P1wRvR_Qk1yRyZr574gMLMnrs"
 
 DATABASE_URI = f'postgres://{os.environ.get("POSTGRES_USER")}:' \
                f'{os.environ.get("POSTGRES_PASSWORD")}@' \
@@ -51,6 +52,11 @@ LOCAL_MONGO_URL = f'mongodb://{os.environ.get("LOCAL_MONGO_USER")}:'\
                 f'{os.environ.get("LOCAL_MONGO_PASSWORD")}@'\
                 f'{os.environ.get("LOCAL_MONGO_HOST")}:27017/'
             
+# INVENTORY_MICROSERVICE_HOST = os.environ.get("INVENTORY_HOST")
+
+# MAIN_MICROSERVICE_HOST = os.environ.get("MAIN_HOST")
+INVENTORY_MICROSERVICE_HOST = "http://192.168.29.98:8001"
+MAIN_MICROSERVICE_HOST = "http://192.168.29.98:8001"
 
 
 USERS_OPEN_REGISTRATION = True

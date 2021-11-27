@@ -137,6 +137,7 @@ class Clinic(models.Model):
         "models.ClinicTimings", related_name="clinictimigs")
     inventory: fields.ForeignKeyRelation[Inventory] = fields.ForeignKeyField(
         "models.Inventory", related_name="clinicinventories",null=True, blank=True)
+    mongo_inventory = fields.IntField(null=True,blank=True)
     active = fields.BooleanField(default=True)
     # def clinicTimings(self) -> str:
     #     if self.timings.all() is not None:
@@ -241,6 +242,9 @@ class Medicine(models.Model):
     title = fields.CharField(max_length=1000,unique=True)
     brand = fields.CharField(max_length=500,null=True,blank=True)
     active = fields.BooleanField(default=False)
+    updated_inventory = fields.CharField(default="",max_length=60)
+    updated_type_medical = fields.BooleanField(default=True)
+    
     
     # class Meta:
     #     unique_together = (("title", "brand"), )

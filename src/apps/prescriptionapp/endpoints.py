@@ -19,10 +19,16 @@ import os
 import shutil
 from .service import *
 from .schema import *
+import requests
+from src.config.settings import INVENTORY_MICROSERVICE_HOST
 from .pydanticmodels import *
 from fastapi_pagination import LimitOffsetPage, Page, add_pagination
 from fastapi_pagination.ext.tortoise import paginate
 import datetime
+import os
+import aiohttp
+
+from requests.adapters import HTTPAdapter
 clinto_router = APIRouter(dependencies=[Depends(get_session_current_login)])
 days = ["Monday", "Tuesday", "Wednesday",
         "Thursday", "Friday", "Saturday", "Sunday"]
@@ -31,12 +37,74 @@ async def getClinics(userid: int):
     user = await User.get(id=userid).prefetch_related("workingclinics")
     clinics = [{"name": clinic.name, "email": clinic.email}async for clinic in user.workingclinics.all()]
 
+async def create_medical_inventory(clinic:int,name:str,csrf:str):
+    data = {"clinic":clinic,"title":name,"medicines":[]}
+    # try:
+    # r = requests.post(
+    #     f"{INVENTORY_MICROSERVICE_HOST}/api/v1/medicalInventory/createMedicalInventory", timeout=10,json=data)
+    # r = requests.get(f"")
+    host = f"{INVENTORY_MICROSERVICE_HOST}/api/v1/medicalInventory/createMedicalInventory"
+    print(host)
+    async with aiohttp.ClientSession(headers={"csrf":csrf}) as session:
+        async with session.post(host,json=data) as res:
+            clinic_obj = await res.json()
+            return clinic_obj['id']
+    # r = requests.get(
+    #     f"{INVENTORY_MICROSERVICE_HOST}/api/v1/medicalInventory/getNothing", timeout=20)
+    # print(r.status_code)
+    # print(r.text)
+    # except Exception as e:
+    #     print(e)
+    
+async def create_clinic_inventory(clinic:int,name:str,csrf:str):
+    data = {"clinic": clinic, "title": name, "racks": []}
+    # try:
+    # r = requests.post(
+    #     f"{INVENTORY_MICROSERVICE_HOST}/api/v1/medicalInventory/createMedicalInventory", timeout=10,json=data)
+    # r = requests.get(f"")
+    host = f"{INVENTORY_MICROSERVICE_HOST}/api/v1/medicalInventory/createClinicInventory"
+    print(host)
+    async with aiohttp.ClientSession(headers={"csrf":csrf}) as session:
+        async with session.post(host,json=data) as res:
+            clinic_obj = await res.json()
+            return clinic_obj['data_obj']
+
+def create_medical_inventory_normal(clinic: int, name: str):
+    URL = f"{INVENTORY_MICROSERVICE_HOST}/api/v1/medicalInventory/getNothing"
+    # URL = "http://httpbin.org/uuid"
+    r = requests.get(
+        URL, timeout=20)
+    print(r.status_code)
+    
+
+@clinto_router.post('/addMedicalMedicines')
+async def add_main_medicines(data: NormalMedicine):
+    new_medicine = await Medicine.create(title=data.name, type=data.medicine_type, active=False, max_retial_price=data.price,updated_inventory=str(data.inventory),updated_type_medical=data.is_medical)
+    return {"success":"medicine added to main inventory","id":new_medicine.id}
+
+
+
+    
+    
+    
+    
 @clinto_router.post('/createClinic')
-async def createClinic(clinic: Create_Clinic = Body(...),zone_id:Optional[int]=Body(...)):
+async def createClinic(request:Request,clinic: Create_Clinic = Body(...),zone_id:Optional[int]=Body(...)):
+    csrf_token = request.headers.get('csrf')
     if zone_id is None:
         clinic_obj = await Clinic.create(**clinic.dict(exclude_unset=True))
     else:
         clinic_obj = await Clinic.create(**clinic.dict(exclude_unset=True),zone_id=zone_id)
+    if clinic_obj.types == "MedicalStore":
+        get_inventory_id = await create_medical_inventory(
+            clinic_obj.id, clinic_obj.name, csrf_token)
+        clinic_obj.mongo_inventory = get_inventory_id
+        await clinic_obj.save()
+    if clinic.types == "Clinic":
+        get_inventory_id = await create_clinic_inventory(
+            clinic_obj.id, clinic_obj.name, csrf_token)
+        clinic_obj.mongo_inventory = get_inventory_id
+        await clinic_obj.save()
     # path = pathlib.Path(
     #     MEDIA_ROOT, f"clinicmainimages/{str(clinic_obj.id)+file.filename}")
     # os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -47,7 +115,8 @@ async def createClinic(clinic: Create_Clinic = Body(...),zone_id:Optional[int]=B
     # print(file.filename)
     # print(create_clinic)
     return clinic_obj
-    
+# @clinto_router.post('/addMedicalMedicine')
+# async def create
 @clinto_router.get('/getClinics')
 async def get_clinics(limit: int = 10, offset: int = 0, type: Optional[Types] = Types.Clinic,id:Optional[int]=None):
     if id is not None:
@@ -151,11 +220,11 @@ async def add_doctors(data: Create_Recopinist, user: User_Pydantic, clinic: int 
 @clinto_router.post("/addClinicImages")
 async def clinic_images(clinic: int,files: List[UploadFile] = File(...)):
     file_paths = []
-    clinic_obj = await Clinic.get(id=clinic)
+
     for file in files:
         sample_uuid = uuid.uuid4()
         path = pathlib.Path(
-        MEDIA_ROOT, f"clinicimages/{str(sample_uuid)+file.filename}")
+        MEDIA_OOT, f"clinicimages/{str(sample_uuid)+file.filename}")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         file_paths.append(str(path))
         with path.open('wb') as write:
@@ -165,6 +234,10 @@ async def clinic_images(clinic: int,files: List[UploadFile] = File(...)):
     clinic_obj.clinic_images = file_paths
     await clinic_obj.save()
     return clinic_obj
+
+@clinto_router.post("/updateClinicInventory")
+async def clinic_images(clinic:int=Body(...),inventory:int=Body(...)):
+    pass
 
 @clinto_router.post("/addTimings")
 async def add_timings(timings: List[Create_Timings],clinic: bool=Body(...), clinicid: int=Body(...)):
@@ -221,6 +294,7 @@ async def get_recop_clinics(recop:int):
         clinics_list.append({"clinic":clinic,"details":clinics})
     return {"working_clinics": clinics_list,"user":doctor_obj}
 
+
 # @clinto_router.post('/addRecopinist')
 # async def add_recopinist(data: Create_Recopinist):
 #     create_recopinist = await ClinicReceponists.create(clinic_id=clinic, user_id=user, **data.dict(exclude_unset=True))
@@ -230,6 +304,7 @@ async def get_recop_clinics(recop:int):
 async def add_slots(data: Create_AppointmentSlots,clinicid: int = Body(...),doctor:int = Body(...)):
     create_slot = await AppointmentSlots.create(clinic_id=clinicid, doctor_id=doctor, **data.dict(exclude_unset=True))
     return create_slot
+
 
 # @clinto_router.post('/addAppointments')
 # async def add_appointments(data: Create_Appointments, clinicid: int = Body(...), user: int = Body(...), slot: int = Body(...), accepted_slot: Optional[int] = Body(...)):
@@ -348,6 +423,7 @@ async def add_slots(data: BulkSlot):
 @clinto_router.post('/addPrescription')
 async def add_prescription(data:AddPrescription):
     pres_obj = Prescription()
+    print(data,"imheree")
     if data.personal_prescription:
         if data.doctor is None:
             raise HTTPException(
@@ -392,15 +468,12 @@ async def add_prescription(data:AddPrescription):
         else:
             clinic_obj = await Clinic.get(id=data.clinic_id)
             doctor_obj = await User.get(id=data.doctor_id)
-            print(data)
             if data.user_id is not None:
                 user_obj = await User.get(id=data.user_id)
-                print("imhereeeasddd")
             if data.user_create is not None:
-                print("awgefasdddd")
                 user_dict = data.user_create.dict()
                 hashed_password = get_password_hash(
-                    user_dict.pop('password'))
+                user_dict.pop('password'))
                 user_obj = await User.create(**user_dict, password=hashed_password)
             pres_obj = await Prescription.create(clinic=clinic_obj, doctor=doctor_obj, user=user_obj, doctor_fees=data.doctor_fees, next_visit=data.next_visit, reason=data.reason,age=age(user_obj.date_of_birth),blood_sugar=data.blood_sugar,blood_pressure=data.blood_pressure,weight=data.weight)
             for diag in data.medicines:
@@ -408,7 +481,6 @@ async def add_prescription(data:AddPrescription):
                 if diag.template:
                     pres_template = await PrescriptionTemplates.create(diagonsis=diag_obj, personal=False, doctor_obj=doctor_obj, command=diag.command)
                 for medicine in diag.pres_medicines:
-                    print(medicine,"imhereee")
                     medicine_obj = await PresMedicines.create(**medicine.dict(exclude_unset=True),diagonsis=diag_obj,diagonsisName=diag_obj.title)
                     await pres_obj.medicines.add(medicine_obj)
                     if medicine_obj.is_drug:
@@ -710,17 +782,13 @@ async def filter_lab_owners(clinic_id: Optional[int] = None, user_id: Optional[i
     return  owner_list
 
 @clinto_router.get('/mainMedicines')
-async def main_medicines(limit:int=10,offset:int=0,active:bool=True,search:bool=False):
-    next_items = False
-    previous_items = False
-    total_items = await Medicine.filter(active=active).count()
-    medicines = await Medicine.filter(active=active)
-    if not search:
-        if offset > 0:
-            previous_items = True
-        if total_items < (offset/limit) * limit:
-            next_items = True
-    return medicines
+async def main_medicines(limit:int=10,offset:int=0,active:bool=True,search:str=None):
+    search_dict = dict()
+    search_dict['active'] = active
+    if search is not None:
+        search_dict['title__istartswith'] = search
+    medicine_items = await Medicine.filter(**search_dict)
+    return medicine_items[:5]
 
 @clinto_router.post('/addReports')
 async def add_medicines(data: Create_Reports = Body(...)):
