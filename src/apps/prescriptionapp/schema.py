@@ -61,6 +61,18 @@ class PrescriptionMedicines(BaseModel):
     is_given: Optional[bool] = False
     days: int = 0
     medicine_id: int
+    
+class MedicinesGiven(BaseModel):
+    qty_available: Optional[int] = 0
+    total_qty: float = 0
+    command: str = ""
+    medicine_name:str
+    medicine_type: MedicineTypes
+    is_drug: Optional[bool] = False
+    before_food: Optional[bool] = False
+    is_given: Optional[bool] = False
+    days: int = 0
+    medicine_id: int
 
 
 class PatientCreation(BaseModel):
@@ -88,7 +100,57 @@ class CreateTemplate(BaseModel):
     command:str
     template:Optional[bool] = False
     pres_medicines:List[PrescriptionMedicines]
-    medicines_given:List[PrescriptionMedicines]
+    medicines_given: List[MedicinesGiven]
+
+
+class EditPrescriptionMedicines(BaseModel):
+    id: int
+    morning_count: float = 0
+    afternoon_count: float = 0
+    invalid_count: float = 0
+    night_count: float = 0
+    qty_per_time: float = 0
+    total_qty: float = 0
+    command: str = ""
+    medicine_name: str
+    medicine_type: MedicineTypes
+    is_drug: Optional[bool] = False
+    before_food: Optional[bool] = False
+    is_given: Optional[bool] = False
+    days: int = 0
+    medicine_id: int
+
+
+class EditMedicinesGiven(BaseModel):
+    id: int
+    qty_available: Optional[int] = 0
+    total_qty: float = 0
+    command: str = ""
+    medicine_name: str
+    medicine_type: MedicineTypes
+    is_drug: Optional[bool] = False
+    before_food: Optional[bool] = False
+    is_given: Optional[bool] = False
+    days: int = 0
+    medicine_id: int
+class TemplateEdit(BaseModel):
+    command: Optional[str] = None
+    template: int
+    pres_medicine: Optional[EditPrescriptionMedicines] = None
+    medicine_given: Optional[EditMedicinesGiven] = None 
+    medicines_add: Optional[List[PrescriptionMedicines]] = None
+    medicines_given: Optional[List[MedicinesGiven]] = None
+    delete_medicine: Optional[int] = None
+    
+
+
+class CreateTemplateSub(BaseModel):
+    diagonsis: str
+    command: str
+    doctor_id: int
+    template: Optional[bool] = False
+    pres_medicines: List[PrescriptionMedicines]
+    medicines_given: List[MedicinesGiven]
 class AddPrescription(BaseModel):
     active : bool = True
     next_visit: Optional[date] = None
@@ -206,5 +268,22 @@ class NormalMedicine(BaseModel):
     medicine_verifed: Optional[bool] = False
     active: Optional[bool] = False
     is_medical: Optional[bool] = True
+    
+class UsedMedicines(BaseModel):
+    total_qty: int
+    main_medicine:int
+    name:str
+    diagonsis:str
+    medicine_type: MedicineTypes
+    
+class UsedMedicinesUpdate(BaseModel):
+    medicines:List[UsedMedicines]
+    inventory:int
+    
 
+    
+    
+    
+    
+    
 

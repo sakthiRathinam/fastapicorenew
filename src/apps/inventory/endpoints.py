@@ -16,7 +16,7 @@ from src.config.mongo_conf import virtual_database, local_database
 from src.config.settings import BASE_DIR, STATIC_ROOT, MEDIA_ROOT
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from .service import get_sequence, get_embedded_size, mongo_limited_data_embedded
+from .service import get_sequence, get_embedded_size, mongo_limited_data_embedded, mongo_limited_data_normal
 import pathlib
 from src.config.settings import MAIN_MICROSERVICE_HOST
 from bson import ObjectId
@@ -279,6 +279,99 @@ async def update_medicine_status(data: List[OrderMedicines], order: int, invento
                         if update_obj.modified_count:
                             updated_count +=1
         return {"success":"medicines updated successfully","updated_count":updated_count}
+    
+    
+@medical_extra_router.put('/updateUsedMedicines')
+async def update_used_medicines(data:UsedMedicinesUpdate):
+    data_dict = data.dict()
+    print(data_dict,"imawegawegewageg")
+    inventory = data_dict.pop('inventory')
+    name_list = [medicine.name for medicine in data.medicines]
+    inventory_data = await db.clinicracks.find({"inventory":inventory,"medicines.name":{"$in":name_list}},{
+        "medicines":{"$elemMatch":{"name":{"$in":name_list}}}}).to_list(length=None)
+    medicines_missing = []
+    medicines_there = []
+    updated_count = 0
+    create_used = []
+    for inv_medicine in inventory_data:
+        for medicine in inv_medicine['medicines']:
+            for order_medicine in data_dict['medicines']:
+                if medicine['name'] == order_medicine['name']:
+                    if medicine['total_qty'] < order_medicine['total_qty']:
+                        medicines_missing.append(medicine['name'])
+                    else:
+                        minus_quantity = medicine['total_qty'] - order_medicine['total_qty']
+                        medicine_obj = {"total_subboxes": 0, "total_boxes": 0, "total_loose": 0, "total_qty":minus_quantity}
+                        if medicine['medicine_type'] == "Tablet" or medicine['medicine_type'] == 'Capsules':
+                            total_strips = minus_quantity // medicine['piece_per_subboxes']
+                            medicine_obj['total_boxes'] = round(
+                                total_strips // medicine['subbox_per_boxes'])
+                            medicine_obj['total_subboxes'] = round(total_strips %
+                                                                medicine['piece_per_subboxes'])
+                            medicine_obj['total_loose'] = round(minus_quantity %
+                                                medicine['piece_per_subboxes'])
+                        else:
+                            medicine_obj['total_boxes'] = minus_quantity // medicine['medicines']['subbox_per_boxes']
+                            medicine_obj['total_subboxes'] = round(minus_quantity %
+                                                    medicine['subbox_per_boxes'])
+                        update_obj = await db.clinicracks.update_one({"_id": inv_medicine['_id']}, {"$set": {"medicines.$[medicines].total_boxes": medicine_obj['total_boxes'], "medicines.$[medicines].total_loose": medicine_obj['total_loose'], "medicines.$[medicines].total_subboxes": medicine_obj['total_subboxes'], "medicines.$[medicines].total_qty": medicine_obj['total_qty']}},upsert=True,array_filters=[{"medicines.name":medicine['name']}])
+                        
+                        current_sequence = await get_sequence("usedmedicines")
+                        create_used = await virtual_database.usedmedicines.insert_one({"_id":current_sequence,"total_qty":minus_quantity,"name":medicine['name'],"type":medicine['medicine_type'],"diagonsis":order_medicine['diagonsis'],"main_medicine":order_medicine['main_medicine'],"used":str(datetime.now()),"inventory":inventory})
+                        if update_obj.modified_count:
+                            updated_count += 1
+    return {"success":True,"updated_count":updated_count}
+
+@medical_extra_router.put('/reteriveUsedMedicines')
+async def reterive_used_medicines(data:UsedMedicinesUpdate):
+    data_dict = data.dict()
+    inventory = data_dict.pop('inventory')
+    name_list = [medicine.name for medicine in data.medicines]
+    
+    inventory_data = await db.clinicracks.find({"inventory":inventory,"medicines.name":{"$in":name_list}},{
+        "medicines":{"$elemMatch":{"name":{"$in":name_list}}}}).to_list(length=None)
+    medicines_missing = []
+    medicines_there = []
+    updated_count = 0
+    create_used = []
+    for inv_medicine in inventory_data:
+        for medicine in inv_medicine['medicines']:
+            for order_medicine in data_dict['medicines']:
+                if medicine['name'] == order_medicine['name']:
+                    if medicine['total_qty'] < order_medicine['total_qty']:
+                        medicines_missing.append(medicine['name'])
+                    else:
+                        minus_quantity = medicine['total_qty'] - order_medicine['total_qty']
+                        medicine_obj = {"total_subboxes": 0, "total_boxes": 0, "total_loose": 0, "total_qty":minus_quantity}
+                        if medicine['medicine_type'] == "Tablet" or medicine['medicine_type'] == 'Capsules':
+                            total_strips = minus_quantity // medicine['piece_per_subboxes']
+                            medicine_obj['total_boxes'] = round(
+                                total_strips // medicine['subbox_per_boxes'])
+                            medicine_obj['total_subboxes'] = round(total_strips %
+                                                                medicine['piece_per_subboxes'])
+                            medicine_obj['total_loose'] = round(minus_quantity %
+                                                medicine['piece_per_subboxes'])
+                        else:
+                            medicine_obj['total_boxes'] = minus_quantity // medicine['medicines']['subbox_per_boxes']
+                            medicine_obj['total_subboxes'] = round(minus_quantity %
+                                                    medicine['subbox_per_boxes'])
+                        update_obj = await db.clinicracks.update_one({"_id": inv_medicine['_id']}, {"$set": {"medicines.$[medicines].total_boxes": medicine_obj['total_boxes'], "medicines.$[medicines].total_loose": medicine_obj['total_loose'], "medicines.$[medicines].total_subboxes": medicine_obj['total_subboxes'], "medicines.$[medicines].total_qty": medicine_obj['total_qty']}},upsert=True,array_filters=[{"medicines.name":medicine['name']}])
+                        current_sequence = await get_sequence("usedmedicines")
+                        create_used = await virtual_database.usedmedicines.insert_one({"_id":current_sequence,"total_qty":minus_quantity,"name":medicine['name'],"type":medicine['medicine_type'],"diagonsis":order_medicine['diagonsis'],"main_medicine":order_medicine['main_medicine'],"used":str(datetime.now()),"inventory":inventory})
+                        if update_obj.modified_count:
+                            updated_count += 1
+    return {"success":True,"updated_count":updated_count}
+
+
+@medical_extra_router.get('/getUsedMedicines')
+async def get_used_medicines(inventory:int,limit:Optional[int]=10,offset:Optional[int]=0):
+    get_used_data_mongo = await mongo_limited_data_normal(db.usedmedicines,count_filter={"inventory":inventory},filter_objs={"inventory":inventory},limit=limit,offset=offset)
+    return get_used_data_mongo
+@medical_extra_router.delete('/deleteUsedMedicines')
+async def get_used_medicines(id:int):
+    
+    return get_used_data
+    
                         
                         
 @medical_extra_router.put('/changeRack')
@@ -315,6 +408,7 @@ async def add_minimum(order: int):
     ordered_medicines = await virtual_database.clinicorders.delete_one({"_id":order})
     return "order deleted successfully"
     
+
 
     
 

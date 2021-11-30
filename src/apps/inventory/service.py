@@ -30,6 +30,18 @@ async def mongo_limited_data_embedded(collection: motor.motor_asyncio.AsyncIOMot
     }
     return to_send
 
+
+async def mongo_limited_data_normal(collection: motor.motor_asyncio.AsyncIOMotorCollection,count_filter:Optional[dict]={}, filter_objs: Optional[dict]={}, limit: Optional[int] = 10, offset: Optional[int] = 0):
+    total_count = await collection.count_documents(count_filter)
+    to_send = {
+        "total_count": total_count,
+        "next": True if limit + offset < total_count else False,
+        "prev": True if offset > 0 else False,
+        "data": await collection.find(filter_objs).skip(offset).limit(limit).to_list(length=None), 
+    }
+    print(to_send)
+    return to_send
+    
 def next_alpha_round(s):
     return chr((ord(s.upper())+1 - 65) % 26 + 65)
 

@@ -82,13 +82,41 @@ class ClinicMedicine(BaseModel):
     is_drug: Optional[bool] = False
     rack: int
     main_medicine: Optional[int] = None
+class AddRackMedicine(BaseModel):
+    name : str
+    clinic : int
+    inventory: int
+    price: float
+    min_qty : float
+    medicine_type: MedicineTypes
+    subbox_per_boxes: int
+    piece_per_subboxes:Optional[int] = 0
+    total_boxes: Optional[int] = 0
+    total_subboxes: Optional[int] = 0
+    total_loose : Optional[int] = 0
+    indication_qty: float
+    total_qty:  Optional[float] = 0
+    is_drug: Optional[bool] = False
+    main_medicine: Optional[int] = None
 
 
+class UsedMedicines(BaseModel):
+    total_qty: int
+    main_medicine: int
+    name: str
+    diagonsis: str
+    medicine_type: MedicineTypes
+
+
+class UsedMedicinesUpdate(BaseModel):
+    medicines: List[UsedMedicines]
+    inventory: int
+    prescription: int
 class ClinicRack(BaseModel):
     inventory: int
     clinic: int
     title: str
-    medicine: ClinicMedicine
+    medicines: Optional[List[ClinicMedicine]] = []
 class OrderMedicines(BaseModel):
     name: str
     main_medicine:int
@@ -113,7 +141,9 @@ class ClinicOrders(BaseModel):
     clinic: int
     inventory: int
     status: Optional[OrderStatus] = "Pending"
-    orderedMedicines:Optional[List[OrderMedicines]] = None 
+    orderedMedicines:Optional[List[OrderMedicines]] = None
+    
+    
 class AvailableMedicine(BaseModel):
     medicine: str
     quantity: float
@@ -137,7 +167,7 @@ class CheckAvailable(BaseModel):
 class ChangeRack(BaseModel):
     current_rack:int
     transfer_rack:int
-    medicines: Optional[List[ClinicMedicine]] = []
+    medicine: AddRackMedicine
 
     
     
@@ -147,7 +177,14 @@ class RackMin(BaseModel):
 class ClinicInventory(BaseModel):
     clinic: int
     title: str
-    racks:Optional[List[RackMin]] = [] 
+    racks:Optional[List[RackMin]] = []
+    
+class ClinicInventorySub(BaseModel):
+    clinic: int
+    title: str
+    racks: Optional[List[RackMin]] = []
+    
+    
     
     
     

@@ -50,6 +50,9 @@ class MedicineViewSet(BaseService):
 class ReportViewSet(BaseService):
     model = MedicalReports
     get_schema = GET_Reports
+class PrescriptionTemplateViewSet(BaseService):
+    model = PrescriptionTemplates
+    get_schema = GET_PrescriptionTemplates
 
 
 class PharmacyOwnersViewSet(BaseService):
@@ -80,6 +83,7 @@ doctor_view = DoctorViewSet()
 appointment_view = AppointmentViewSet()
 slot_view = SlotViewSet()
 prescription_view = PrescriptionViewSet()
+prescription_template = PrescriptionTemplateViewSet()
 medicine_view = MedicineViewSet()
 report_view = ReportViewSet()
 lab_owner_view = LabOwnersViewSet()

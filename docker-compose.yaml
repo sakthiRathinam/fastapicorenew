@@ -9,7 +9,7 @@ services:
     env_file:
       - ./env/db.env
     ports:
-      - "1436:5432"
+      - "1437:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
   clintonew:
@@ -22,7 +22,7 @@ services:
     volumes:
       - .:/app
     ports:
-      - "8001:8000"
+      - "8002:8000"
     restart: always
     depends_on:
       - postgresdb
@@ -36,7 +36,7 @@ services:
     env_file:
       - ./env/pgadmin.env
     ports:
-      - "5057:80"
+      - "5058:80"
     depends_on:
       - postgresdb
     # restart: always
