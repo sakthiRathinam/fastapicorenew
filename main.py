@@ -13,6 +13,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import logging
 from src.config.mongo_conf import destroy_clients
 from src.apps.inventory.mongoindexes import mongo_indexes
+from src.apps.inventory.service import connect_chat_server
 from fastapi_pagination import LimitOffsetPage, Page, add_pagination
 from fastapi_socketio import SocketManager
 fastapi.logging = logging.getLogger('uvicorn')
@@ -48,6 +49,7 @@ async def start_db():
     init_tortoise()
     await mongo_indexes()
     add_pagination(app)
+    await connect_chat_server()
 
 
 

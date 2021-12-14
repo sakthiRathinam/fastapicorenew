@@ -1,3 +1,4 @@
+from src.config.settings import sio, CHAT_MICROSERVICE_HOST
 import socketio
 from starlette.responses import JSONResponse
 from .models import *
@@ -9,6 +10,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse
 from src.config.mongo_conf import *
 from .schema import *
+from datetime import datetime,date,timedelta
 from .service import *
 import os
 from src.apps.users.views import get_current_login, get_session_current_login
@@ -682,15 +684,25 @@ async def create_group(group:ChatGroup):
         data_dict['_id'] = await get_sequence('chatgroups')
         await db.chatgroups.insert_one(data_dict)
         return {"room_name": str(data_dict['_id']), "clinic": data_dict['main_name'],"clinicdp":data_dict['main_dp'],"username":data_dict['customer_name'],"customer_dp":data_dict['customer_dp'], "group": "group is created"}
-
+from .service import get_embedded_size
 @medical_extra_router.get('/getUserChats')
 async def get_user_chats(user:int,limit:Optional[int] = 10,offset:Optional[int]=0):
-    mongo_data = await mongo_limited_data_normal(db.chatgroups,count_filter={"inventory":inventory},filter_objs={"customer_id":user},project_objs={"messages":0},limit=limit,offset=offset)
+    mongo_data = await mongo_limited_data_normal(db.chatgroups, count_filter={"customer_id": user}, filter_objs={"customer_id": user}, project_objs={"messages": 0}, limit=limit, offset=offset)
     return mongo_data
+@medical_extra_router.get('/getChatMesages')
+async def get_user_chats(groupid:int,limit:Optional[int] = 10,offset:Optional[int]=0):
+    total_count = await get_embedded_size(db.chatgroups, groupid, "messages")
+    to_send = {
+        "total_count": total_count,
+        "next": True if limit + offset < total_count else False,
+        "prev": True if offset > 0 else False,
+        "data": await virtual_database.chatgroups.aggregate([{"$match": {"_id": groupid}}, {"$unwind": "$messages"},{"$project":{"messages":1,"_id":0}} ,{"$sort": {"messages.createdAt": -1}}, {"$skip": offset}, {"$limit": limit}]).to_list(length=None)
+    }
+    return to_send
     
 @medical_extra_router.get('/otherUserChats')
 async def get_user_chats(main:int,limit:Optional[int] = 10,offset:Optional[int]=0):
-    mongo_data = await mongo_limited_data_normal(db.chatgroups, count_filter={"inventory": inventory}, filter_objs={"customer_id": user}, project_objs={"messages": 0}, limit=limit, offset=offset)
+    mongo_data = await mongo_limited_data_normal(db.chatgroups, count_filter={"main_id": main}, filter_objs={"main_id": main}, project_objs={"messages": 0}, limit=limit, offset=offset)
     return mongo_data
     
 
@@ -707,54 +719,59 @@ async def delete_user(groupid:int):
         return "group deleted successfully"
     return "group was not found! please check the groupid"
 import uuid
-import json
+import pytz
+tz = pytz.timezone("Asia/Calcutta")
 @medical_extra_router.post('/createChatMsg')
 async def create_chat_message(request: Request):
-    request = await request.form()
+    data = await request.form()
+    print(data)
     data_dict = dict()
     if 'sender_id' and 'sender_name' and 'sender_picture' in data:
         data_dict['user'] = {}
-        data_dict['user']['_id'] = request['sender_id']
-        data_dict['user']['name'] = request['sender_name']
-        data_dict['user']['avatar'] = request['sender_picture']
+        data_dict['user']['_id'] = data['sender_id']
+        data_dict['user']['name'] = data['sender_name']
+        data_dict['user']['avatar'] = data['sender_picture']
     if 'receiver_id' and 'receiver_name' and 'receiver_picture' in data:
         data_dict['receiver'] = {}
-        data_dict['receiver']['_id'] = request['receiver_id']
-        data_dict['receiver']['name'] = request['receiver_name']
-        data_dict['receiver']['avatar'] = request['receiver_picture']
-    if 'text' in request:
-        data_dict['text'] = request['text']
+        data_dict['receiver']['_id'] = data['receiver_id']
+        data_dict['receiver']['name'] = data['receiver_name']
+        data_dict['receiver']['avatar'] = data['receiver_picture']
+    if 'text' in data:
+        data_dict['text'] = data['text']
     else:
         data_dict['text'] = ""
-    data_dict['createdAt'] = datetime.datetime.now()
-    if 'image' in request:
+    data_dict['createdAt'] = datetime.now() + timedelta(minutes=30,hours=5)
+    if 'image' in data:
         sample_uuid = uuid.uuid4()
+        file = data['image']
         path = pathlib.Path(
         MEDIA_ROOT, f"chatimages/{str(sample_uuid)+file.filename}")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with path.open('wb') as write:
             shutil.copyfileobj(file.file, write)
-        data_dict['image'] = path
-        data_dict['document_type'] = request['file'].content_type
+        data_dict['image'] = str(path)
+        data_dict['document_type'] = data['image'].content_type
     else:
         data_dict['image'] = ""
-    if 'audio' in request:
+    if 'audio' in data:
         sample_uuid = uuid.uuid4()
+        file = data['audio']
         path = pathlib.Path(
-        MEDIA_ROOT, f"chatimages/{str(sample_uuid)+file.filename}")
+        MEDIA_ROOT, f"chataudios/{str(sample_uuid)+file.filename}")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with path.open('wb') as write:
             shutil.copyfileobj(file.file, write)
-        data_dict['audio'] = path
-        data_dict['document_type'] = request['file'].content_type
+        data_dict['audio'] = str(path)
+        data_dict['document_type'] = data['audio'].content_type
     else:
         data_dict['audio'] = ""
-    data_dict['id'] = await get_sequence('chatmessages')
-    push_message = await db.chatgroups.update_one({"_id":request['groupid']},{"messages":{"$push":data_dict}})
+    data_dict['_id'] = await get_sequence('chatmessages')
+    push_message = await db.chatgroups.update_one({"_id": int(data['groupid'])}, {"$push": {"messages": data_dict}})
     if push_message.modified_count:
-        data_dict['room_name'] = str(request['groupid'])
+        data_dict['room_name'] = str(data['groupid'])
+        data_dict['createdAt'] = str(data_dict['createdAt'])
         json_object = json.dumps(data_dict)
-        sio.emit('send_group_message',json_object)
+        await sio.emit('send_group_message',json_object)
         return "message seneded successfully"
     else:
         return "some error occur"

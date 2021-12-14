@@ -4,8 +4,9 @@ import os
 import motor.motor_asyncio
 from src.config.mongo_conf import virtual_database as db
 from typing import Optional
-
-
+from src.config.settings import sio, CHAT_MICROSERVICE_HOST
+async def connect_chat_server():
+    await sio.connect(CHAT_MICROSERVICE_HOST)
 async def get_sequence(sequencename: str) -> int:
     sequence = await db.counters.find_one_and_update(filter={"_id": sequencename}, update={"$inc": {"current_sequence": 1}}, new=True)
     return sequence['current_sequence']
