@@ -38,6 +38,10 @@ redis = "^3.5.3"
 fastapi-pagination = "^0.9.0"
 razorpay = "^1.2.0"
 aiohttp = "^3.7.4"
+googlemaps = "^4.5.3"
+asgiref = "^3.4.1"
+fastapi-socketio = "^0.0.9"
+python-socketio = {extras = ["standard"], version = "^5.5.0"}
 
 [tool.poetry.dev-dependencies]
 

@@ -1,0 +1,15 @@
+-- upgrade --
+CREATE TABLE IF NOT EXISTS "cartsubs" (
+    "id" SERIAL NOT NULL PRIMARY KEY,
+    "created" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "updated" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "received" BOOL NOT NULL  DEFAULT False,
+    "lat" DOUBLE PRECISION NOT NULL  DEFAULT 0,
+    "lang" DOUBLE PRECISION NOT NULL  DEFAULT 0,
+    "quantity" INT NOT NULL  DEFAULT 0,
+    "price" INT NOT NULL  DEFAULT 0,
+    "cart_id" INT NOT NULL REFERENCES "cart" ("id") ON DELETE CASCADE,
+    "medicine_id" INT NOT NULL REFERENCES "medicine" ("id") ON DELETE CASCADE
+);
+-- downgrade --
+DROP TABLE IF EXISTS "cartsubs";

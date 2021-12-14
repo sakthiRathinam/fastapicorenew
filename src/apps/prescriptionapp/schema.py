@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import UploadFile,File
 from datetime import date, datetime, time, timedelta
 from .pydanticmodels import Create_PresMedicines, Create_Timings
-from .models import AppointmentStatus, MedicineTypes
+from .models import AppointmentStatus, MedicineTypes, AddressCategory, Types
 from src.apps.users.models import User_Pydantic
 from src.apps.users.models import Sex
 from fastapi import APIRouter, Depends, BackgroundTasks, Response, status, Request, File, UploadFile, Body
@@ -121,9 +121,9 @@ class EditPrescriptionMedicines(BaseModel):
     medicine_id: int
 
 
+
 class EditMedicinesGiven(BaseModel):
     id: int
-    qty_available: Optional[int] = 0
     total_qty: float = 0
     command: str = ""
     medicine_name: str
@@ -139,10 +139,20 @@ class TemplateEdit(BaseModel):
     pres_medicine: Optional[EditPrescriptionMedicines] = None
     medicine_given: Optional[EditMedicinesGiven] = None 
     medicines_add: Optional[List[PrescriptionMedicines]] = None
-    medicines_given: Optional[List[MedicinesGiven]] = None
+    medicines_given_add: Optional[List[MedicinesGiven]] = None
     delete_medicine: Optional[int] = None
     
 
+class AddressTemplate(BaseModel):
+    lat: float
+    lang: float
+    address: str
+    user_id: int
+    landmark: Optional[str] = ""
+    default: bool
+    id: Optional[int] = None
+    pincode: str
+    category: AddressCategory
 
 class CreateTemplateSub(BaseModel):
     diagonsis: str
@@ -175,7 +185,11 @@ class AddPrescription(BaseModel):
     reason: Optional[str] = None
     reason: Optional[str] = None
     
-
+class GetNearBy(BaseModel):
+    lat: float
+    lang: float
+    type: Optional[Types] = Types.MedicalStore
+    
 class AddExistingDoctor(BaseModel):
     doctor:int
     clinic:int
@@ -279,6 +293,8 @@ class UsedMedicines(BaseModel):
 class UsedMedicinesUpdate(BaseModel):
     medicines:List[UsedMedicines]
     inventory:int
+    
+
     
 
     

@@ -28,8 +28,6 @@ class BaseService:
     update_schema: UpdateSchemaType
     query_schema: QuerySchemaType
     get_schema: GetSchemaType
-    # def __init__(self, model: Type[ModelType]):
-    #     self.model = model
     async def create(self, schema, *args, **kwargs) -> Optional[CreateSchemaType]:
         obj = await self.model.create(**schema.dict(exclude_unset=True), **kwargs)
         return await self.get_schema.from_tortoise_orm(obj)
@@ -72,6 +70,7 @@ class BaseService:
             'next':True,
             'data':None,
         }
+        print(kwargs)
         toReturn['total'] = await self.model.filter(**kwargs).count()
         if offset+limit+1 > toReturn['total']:
             toReturn['next'] = False
@@ -114,7 +113,6 @@ class CustomPage(AbstractPage[T], Generic[T]):
     previous: Optional[bool] = False
     next: Optional[bool] = False
     __params_type__ = Params  # Set params related to Page
-
     @classmethod
     def create(
             cls,
@@ -126,5 +124,31 @@ class CustomPage(AbstractPage[T], Generic[T]):
     ) -> Page[T]:
         return cls(results=items, total=total,page=params.page,size=params.size)
     
-    
+from math import radians,cos,sin,tan,atan2,sqrt
+async def nearest(lon1, lat1, lon2, lat2, clinic_obj):
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    R = 6373.0
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    distance = R * c
+    distance = round(distance, 2)
+    if distance < 5:
+        return distance
+    return None
+
+
+async def find_distance(lon1, lat1, lon2, lat2):
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    R = 6373.0
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    distance = R * c
+    print("Result:", distance)
+    print("Should be:", distance, "km")
+    return distance
+
 

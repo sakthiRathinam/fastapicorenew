@@ -13,6 +13,8 @@ async def mongo_indexes():
     await virtual_database.clinicracks.create_index([('clinic', pymongo.ASCENDING), ('title',pymongo.ASCENDING)], unique=True, background=True, sparse=True)
     await virtual_database.clinicracks.create_index([('rack', pymongo.ASCENDING), ('medicines.name', pymongo.ASCENDING)], unique=True, background=True, sparse=True)
     await virtual_database.clinicracks.create_index([('medicines.clinic', pymongo.ASCENDING), ('medicines.name', pymongo.ASCENDING)], unique=True, background=True, sparse=True)
+    await virtual_database.chatgroups.create_index([('customer_id', pymongo.ASCENDING), ('main_id', pymongo.ASCENDING)], unique=True, background=True, sparse=True)
+    await virtual_database.clinics.create_index([('location', pymongo.GEOSPHERE)], sparse=True, background=True)
     
     # except:
     #     raise Exception('some error occured')

@@ -22,11 +22,5 @@ def send_email(email_to: str, subject_template="", html_template="", environment
         smtp_options["user"] = settings.SMTP_USER
     if settings.SMTP_PASSWORD:
         smtp_options["password"] = settings.SMTP_PASSWORD
-    print(smtp_options)
-    print(environment)
-    print(html_template)
-    print(subject_template)
-    print(email_to)
     response = message.send(to=email_to, render=environment, smtp=smtp_options)
-    print(response,"imhereeee")
     logging.info(f"send email result: {response}")

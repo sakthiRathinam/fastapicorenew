@@ -1,0 +1,14 @@
+-- upgrade --
+CREATE TABLE IF NOT EXISTS "useraddress" (
+    "id" SERIAL NOT NULL PRIMARY KEY,
+    "created" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "updated" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "default" BOOL NOT NULL  DEFAULT False,
+    "address" TEXT,
+    "lat" DOUBLE PRECISION NOT NULL  DEFAULT 0,
+    "lang" DOUBLE PRECISION NOT NULL  DEFAULT 0,
+    "apartment" VARCHAR(400),
+    "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE
+);
+-- downgrade --
+DROP TABLE IF EXISTS "useraddress";

@@ -1,3 +1,4 @@
+import socketio
 from starlette.responses import JSONResponse
 from .models import *
 from .schema import *
@@ -18,7 +19,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from .service import get_sequence, get_embedded_size, mongo_limited_data_embedded, mongo_limited_data_normal
 import pathlib
-from src.config.settings import MAIN_MICROSERVICE_HOST
+from src.config.settings import MAIN_MICROSERVICE_HOST, CHAT_MICROSERVICE_HOST
 from bson import ObjectId
 from bson.json_util import dumps
 from bson import json_util
@@ -39,6 +40,15 @@ async def create_inventory(data: Inventory):
 def next_alpha(s):
     return chr((ord(s.upper())+1))
 
+
+@medical_extra_router.post("/traceMedicalLocation")
+async def create_inventory(data: Inventory):
+    data = data.dict()
+    data['_id'] = await get_sequence("clinic")
+    insert_obj = await virtual_database.clinics.insert_one(data)
+    return {"success":"clinic location added successfully","id":data['_id']}
+    
+    
 
 @medical_extra_router.post('/updateMedicine')
 async def update_medicine(data: NormalMedicine):
@@ -63,7 +73,9 @@ async def create_main_medicine(data:NormalMedicine,csrf:str,medical:bool):
             return medicine_obj['id']
         
 
-
+@medical_extra_router.post('/searchClinics')
+async def update_medicine(data: NormalMedicine):
+    pass
     
 @medical_extra_router.post('/addMedicalMedicines')
 async def update_inventory(data: NormalMedicine,request:Request):
@@ -155,21 +167,20 @@ async def get_medical_medicines(inv:int,starting_letter:Optional[str]="A",limit:
     to_send['previouschar'] = starting_letter
     to_send['number_of_data'] = 10
     return to_send
-            
-    # if len(get_sorted) == 0:
-    #     to_send['previousoffset'] = 0
-    #     current_sorted = get_next_sorted(db.inventory, inv, current_alpha)
-    #     if len(current_sorted) == 1:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_500_BAD_REQUEST, detail="end of the medicines"
-    #         )
-    #     else:
-    #         to_send['data'] = current_sorted
-    #         return current_sorted
-    # else:
-    #     return 
-            
-    
+
+
+@medical_extra_router.get("/getMedicinesMedical")
+async def get_user_medicines(inv: int,limit: Optional[int] = 10, offset: Optional[int] = 0):
+    total_count = await get_embedded_size(db.inventory, id, 'medicines')
+    to_send = {
+        "total_count": total_count,
+        "next": True if limit + offset < total_count else False,
+        "prev": True if offset > 0 else False,
+        "data": await virtual_database.inventory.aggregate([{"$match": {"_id": inv}}, {"$unwind": "$medicines"}, {"$match":{"medicines.active":True}},{"$sort": {"medicines.name": 1}}, {"$skip": offset}, {"$limit": limit}]).to_list(length=None)
+    }
+    return to_send
+
+
 @medical_extra_router.post("/createClinicInventory")
 async def create_clinic_inventory(data: ClinicInventory):
     data = data.dict()
@@ -327,7 +338,6 @@ async def reterive_used_medicines(data:UsedMedicinesUpdate):
     data_dict = data.dict()
     inventory = data_dict.pop('inventory')
     name_list = [medicine.name for medicine in data.medicines]
-    
     inventory_data = await db.clinicracks.find({"inventory":inventory,"medicines.name":{"$in":name_list}},{
         "medicines":{"$elemMatch":{"name":{"$in":name_list}}}}).to_list(length=None)
     medicines_missing = []
@@ -472,7 +482,8 @@ async def medicine_availabilty(medicines: List[str]=Body(...), clinic: int = Bod
     medicines_list = [{"$elemMatch":{"name":{"$regex":"^"+medicine,"$options":"i"}}}for medicine in medicines]
     available = await virtual_database.inventory.find_one({"clinic": clinic, "medicines": {"$all": medicines_list}})
     if available:
-        return {"success": "all required medicines are available in this shop"}
+        get_medicines = await db.inventory.aggregate([{"$match": {"clinic": 60}}, {"$unwind": "$medicines"}, {"$match": {"medicines.name": {"$in": medicines}}}]).to_list(length=None)
+        return {"success": "all required medicines are available in this shop","data":get_medicines}
     return JSONResponse({"error": "some medicines are not available try some other shops"}, status_code=500)
 
 
@@ -497,6 +508,11 @@ async def create_inventory(data: Inventory):
     data_obj = await virtual_database.inventory.insert_one(data)
     pdating_obj = await virtual_database.inventory.update_one({"_id": inventory}, {"$push": {"racks": data['title']}})
     return {"success": "rack added successfully"}
+
+
+
+
+    
 
 @medical_extra_router.post("/getInventory")
 async def create_inventory(clinic: int):
@@ -649,5 +665,105 @@ async def delete_medicine(medicine:str,clinic:int):
     return JSONResponse({"error": "object does not exist"}, status_code=500)
 
 
+@medical_extra_router.post('/createGroup')
+async def create_group(group:ChatGroup):
+    data_dict = group.dict()
+    data_dict['_id'] = await get_sequence('chatgroups')
+    await db.chatgroups.insert_one(data_dict)
+    return "group added succesfully"
 
+@medical_extra_router.post('/createGetGroup')
+async def create_group(group:ChatGroup):
+    check_group = await db.chatgroups.find({"customer_id":group.customer_id,"main_id":group.main_id}).to_list(length=1)
+    if len(check_group) > 0:
+        return {"room_name":str(check_group[0]['_id']),"group":"already group is there"}
+    else:
+        data_dict = group.dict()
+        data_dict['_id'] = await get_sequence('chatgroups')
+        await db.chatgroups.insert_one(data_dict)
+        return {"room_name": str(data_dict['_id']), "clinic": data_dict['main_name'],"clinicdp":data_dict['main_dp'],"username":data_dict['customer_name'],"customer_dp":data_dict['customer_dp'], "group": "group is created"}
+
+@medical_extra_router.get('/getUserChats')
+async def get_user_chats(user:int,limit:Optional[int] = 10,offset:Optional[int]=0):
+    mongo_data = await mongo_limited_data_normal(db.chatgroups,count_filter={"inventory":inventory},filter_objs={"customer_id":user},project_objs={"messages":0},limit=limit,offset=offset)
+    return mongo_data
+    
+@medical_extra_router.get('/otherUserChats')
+async def get_user_chats(main:int,limit:Optional[int] = 10,offset:Optional[int]=0):
+    mongo_data = await mongo_limited_data_normal(db.chatgroups, count_filter={"inventory": inventory}, filter_objs={"customer_id": user}, project_objs={"messages": 0}, limit=limit, offset=offset)
+    return mongo_data
+    
+
+@medical_extra_router.delete('/updateDpChats')
+async def update_dp_chats(user:bool,dp:str,id:int):
+    if user:
+        update_chats = await db.chatgroups.update_many({"customer_id": int}, {"$set":{"customer_dp":dp}})
+    else:
+        update_chats = await db.chatgroups.update_many({"customer_id": int}, {"$set": {"customer_dp": dp}})
+@medical_extra_router.delete('/getUserChats')
+async def delete_user(groupid:int):
+    delete_group = await db.chatgroups.delete_one({"_id":groupid})
+    if delete_group.deleted_count:
+        return "group deleted successfully"
+    return "group was not found! please check the groupid"
+import uuid
+import json
+@medical_extra_router.post('/createChatMsg')
+async def create_chat_message(request: Request):
+    request = await request.form()
+    data_dict = dict()
+    if 'sender_id' and 'sender_name' and 'sender_picture' in data:
+        data_dict['user'] = {}
+        data_dict['user']['_id'] = request['sender_id']
+        data_dict['user']['name'] = request['sender_name']
+        data_dict['user']['avatar'] = request['sender_picture']
+    if 'receiver_id' and 'receiver_name' and 'receiver_picture' in data:
+        data_dict['receiver'] = {}
+        data_dict['receiver']['_id'] = request['receiver_id']
+        data_dict['receiver']['name'] = request['receiver_name']
+        data_dict['receiver']['avatar'] = request['receiver_picture']
+    if 'text' in request:
+        data_dict['text'] = request['text']
+    else:
+        data_dict['text'] = ""
+    data_dict['createdAt'] = datetime.datetime.now()
+    if 'image' in request:
+        sample_uuid = uuid.uuid4()
+        path = pathlib.Path(
+        MEDIA_ROOT, f"chatimages/{str(sample_uuid)+file.filename}")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with path.open('wb') as write:
+            shutil.copyfileobj(file.file, write)
+        data_dict['image'] = path
+        data_dict['document_type'] = request['file'].content_type
+    else:
+        data_dict['image'] = ""
+    if 'audio' in request:
+        sample_uuid = uuid.uuid4()
+        path = pathlib.Path(
+        MEDIA_ROOT, f"chatimages/{str(sample_uuid)+file.filename}")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with path.open('wb') as write:
+            shutil.copyfileobj(file.file, write)
+        data_dict['audio'] = path
+        data_dict['document_type'] = request['file'].content_type
+    else:
+        data_dict['audio'] = ""
+    data_dict['id'] = await get_sequence('chatmessages')
+    push_message = await db.chatgroups.update_one({"_id":request['groupid']},{"messages":{"$push":data_dict}})
+    if push_message.modified_count:
+        data_dict['room_name'] = str(request['groupid'])
+        json_object = json.dumps(data_dict)
+        sio.emit('send_group_message',json_object)
+        return "message seneded successfully"
+    else:
+        return "some error occur"
+    
+    
+@medical_extra_router.delete('/deleteChatMessages')
+async def delete_chat_message(messageid: int, groupid: int):
+    deleted_obj = await virtual_database.chatgroups.update_one({'_id': groupid}, {"$pull": {"messages": {"id": messageid}}})
+    if deleted_obj.modified_count:
+        return "medicine object is deleted successfully"
+    return JSONResponse({"error": "object does not exist"}, status_code=500)
 

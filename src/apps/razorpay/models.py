@@ -34,12 +34,10 @@ class PaymentModes(str, Enum):
 class RazorPayment(models.Model):
     created = fields.DatetimeField(auto_now_add=True)
     updated = fields.DatetimeField(auto_now=True)
-    subscription: RazorPayPlans = fields.CharEnumField(
-        RazorPayPlans, default=RazorPayPlans.Monthly)
-    status: RazorPayStatus = fields.CharEnumField(
-        RazorPayStatus, default=RazorPayStatus.Pending)
     payment_mode: PaymentModes = fields.CharEnumField(
         PaymentModes, default=PaymentModes.upi)
+    status: RazorPayStatus = fields.CharEnumField(
+        RazorPayStatus, default=RazorPayStatus.Pending)
     order_id = fields.CharField(max_length=800, null=True, blank=True)
     user: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
         "models.User", related_name="userpayments")
@@ -56,9 +54,10 @@ class RazorPayment(models.Model):
 
 class MonthlyPlans(models.Model):
     created = fields.DatetimeField(auto_now_add=True)
+    title = fields.CharField(max_length=500,null=True, blank=True)
     updated = fields.DatetimeField(auto_now=True)
-    main_subscription: RazorPayPlans = fields.CharEnumField(
-        RazorPayPlans, default=RazorPayPlans.Monthly)
     amount = fields.IntField(default=0)
+    number_of_months = fields.IntField(default=1)
     discount = fields.IntField(default=0)
     discount_percent = fields.FloatField(default=0)
+

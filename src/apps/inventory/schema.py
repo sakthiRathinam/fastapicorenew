@@ -21,6 +21,12 @@ from enum import Enum, IntEnum
 #     medicine: int
 
 
+class Types(str, Enum):
+    MedicalStore = "MedicalStore"
+    Clinic = "Clinic"
+    Others = "Others"
+    Lab = "Lab"
+
 class MedicineTypes(str, Enum):
     Liquid = "Liquid"
     Tablet = "Tablet"
@@ -44,6 +50,7 @@ class OrderStatus(str, Enum):
     Cancelled = "Cancelled"
     DistrubutorCancelled = "DistrubutorCancelled"
     Received = "Received"
+
     
 class AddMedicine(BaseModel):
     name: str
@@ -57,13 +64,22 @@ class NormalMedicine(BaseModel):
     price: float
     main_medicine:Optional[int] = None
     medicine_type: MedicineTypes
+    is_prescription: Optional[bool] = False
     medicine_verifed : Optional[bool] = False
     active: Optional[bool] = False
+    
+
+    
 class Inventory(BaseModel):
     clinic: int
     title: str
     medicines: Optional[List[AddMedicine]] = []
-
+class ClinicLocation(BaseModel):
+    clinic: int
+    title: str
+    location:List[int] = []
+    address: Optional[int] = []
+    
     
 class ClinicMedicine(BaseModel):
     name : str
@@ -99,14 +115,12 @@ class AddRackMedicine(BaseModel):
     is_drug: Optional[bool] = False
     main_medicine: Optional[int] = None
 
-
 class UsedMedicines(BaseModel):
     total_qty: int
     main_medicine: int
     name: str
     diagonsis: str
     medicine_type: MedicineTypes
-
 
 class UsedMedicinesUpdate(BaseModel):
     medicines: List[UsedMedicines]
@@ -183,7 +197,40 @@ class ClinicInventorySub(BaseModel):
     clinic: int
     title: str
     racks: Optional[List[RackMin]] = []
+
+
+class ChatMessageType(str, Enum):
+    Text = "Text"
+    Message = "Message"
+    Document = "Document"
+    Voice = "Voice"
+class UserChat(BaseModel):
+    _id:int
+    name:str
+    avatar:str
+class ChatMessage(BaseModel):
+    type: Optional[ChatMessageType] = ChatMessageType.Text
+    text: Optional[str] = ""
+    _id: int
+    user: UserChat
+    receiver: UserChat
+    groupid:int
+    image:Optional[str] = None
+    audio:Optional[str] = None
     
+class ChatGroup(BaseModel):
+    customer_id:int
+    main_id:int
+    messages: Optional[ChatMessage] = []
+    customer_name:str
+    customer_dp:str
+    main_name:str
+    main_dp:str
+    is_doctor:Optional[bool] = False
+    is_medical:Optional[bool] = False
+    is_clinic:Optional[bool] = False
+    is_pharamowner:Optional[bool] = False
+
     
     
     

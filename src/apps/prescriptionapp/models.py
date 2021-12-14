@@ -48,6 +48,12 @@ class AppointmentStatus(str, Enum):
     ClinicCancelled = "ClinicCancelled"
     Pending = "Pending"
     
+    
+class AddressCategory(str, Enum):
+    Work = "Work"
+    Home = "Home"
+    Others = "Others"
+    
 class Days(str,Enum):
     Monday = "Monday"
     Tuesday = "Tuesday"
@@ -132,6 +138,10 @@ class Clinic(models.Model):
     gst_no = fields.CharField(max_length=1000, null=True, blank=True)
     clinic_images = StringArrayField(null=True)
     created_subs = fields.BooleanField(default=False)
+    instore_pickup = fields.BooleanField(default=False)
+    instore_pickup_kms = fields.IntField(default=0)
+    number_of_ratings = fields.IntField(default=0)
+    number_of_persons = fields.IntField(default=0)
     inventoryIncluded = fields.BooleanField(default=False)
     timings: fields.ManyToManyRelation["ClinicTimings"] = fields.ManyToManyField(
         "models.ClinicTimings", related_name="clinictimigs")
@@ -169,6 +179,20 @@ class ClinicDoctors(models.Model):
     owner_access = fields.BooleanField(default=False)
     doctor_access = fields.BooleanField(default=True)
     subs = fields.BooleanField(default=False)
+    
+class UserAddress(models.Model):
+    created = fields.DatetimeField(auto_now_add=True)
+    updated = fields.DatetimeField(auto_now=True)
+    default = fields.BooleanField(default=False)
+    user: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
+        "models.User", related_name="useraddresses")
+    address = fields.TextField(max_length=4000,null=True, blank=True)
+    lat = fields.FloatField(default=0)
+    lang = fields.FloatField(default=0)
+    landmark = fields.CharField(max_length=1200, null=True, blank=True)
+    pincode = fields.CharField(max_length=400, null=True, blank=True)
+    category: AddressCategory = fields.CharEnumField(
+        AddressCategory, default=AddressCategory.Home)
     
     
 class PharmacyOwners(models.Model):
@@ -212,7 +236,7 @@ class AppointmentSlots(models.Model):
     day: SlotDays = fields.CharEnumField(SlotDays, default=SlotDays.All)
     active = fields.BooleanField(default=True)
     doctor: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
-        "models.User", related_name="doctorslots")
+        "models.User", related_name="doctorslots",null=True,blank=True)
     
 class Appointments(models.Model):
     created = fields.DatetimeField(auto_now_add=True)
@@ -231,7 +255,7 @@ class Appointments(models.Model):
         AppointmentStatus, default=AppointmentStatus.Pending)
     reason = fields.TextField(max_length=3000,null=True, blank=True)
     doctor: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
-        "models.User", related_name="doctorappointments")
+        "models.User", related_name="doctorappointments",null=True,blank=True)
     
 class Medicine(models.Model):
     created = fields.DatetimeField(auto_now_add=True)
@@ -284,6 +308,9 @@ class SubReports(models.Model):
     expected_result = fields.DatetimeField(null=True,blank=True)
     report_name = fields.CharField(max_length=1200, null=True, blank=True)
     price = fields.IntField(default=0)
+    
+
+
 
 
 class LabReports(models.Model):
@@ -362,6 +389,7 @@ class Prescription(models.Model):
     next_visit = fields.DateField(null=True, blank=True)
     contains_drug = fields.BooleanField(default=False)
     is_template = fields.BooleanField(default=False)
+    ratings_taken = fields.BooleanField(default=False)
     
 class IssuePrescription(models.Model):
     created = fields.DatetimeField(auto_now_add=True)
@@ -387,6 +415,11 @@ class PrescriptionTemplates(models.Model):
     personal = fields.BooleanField(default=False)
     
 
+class PaymentOffers(models.Model):
+    created = fields.DatetimeField(auto_now_add=True)
+    updated = fields.DatetimeField(auto_now=True)
+    title = fields.TextField(max_length=1200, null=True, blank=True)
+    amount = fields.FloatField(default=0)
     
 
 @pre_save(Clinic)

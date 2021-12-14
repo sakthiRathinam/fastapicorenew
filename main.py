@@ -14,13 +14,14 @@ import logging
 from src.config.mongo_conf import destroy_clients
 from src.apps.inventory.mongoindexes import mongo_indexes
 from fastapi_pagination import LimitOffsetPage, Page, add_pagination
-
+from fastapi_socketio import SocketManager
 fastapi.logging = logging.getLogger('uvicorn')
 app = FastAPI(
     title="Core",
     description="FastAPI Core",
     version="0.1.0",
 )
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/media", StaticFiles(directory="media"), name="media")
 # app.add_middleware(
@@ -28,7 +29,7 @@ app.mount("/media", StaticFiles(directory="media"), name="media")
 #         "192.168.29.98", '192.168.29.12', '192.168.29.242', 'localhost', '127.0.0.1']
 # )
 
-
+socket_manager = SocketManager(app=app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -47,6 +48,7 @@ async def start_db():
     init_tortoise()
     await mongo_indexes()
     add_pagination(app)
+
 
 
 

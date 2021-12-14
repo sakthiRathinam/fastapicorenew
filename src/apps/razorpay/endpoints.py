@@ -24,6 +24,7 @@ from fastapi_pagination.ext.tortoise import paginate
 import datetime
 import string
 import razorpay
+import random
 
 from src.config.settings import RAZOR_API_KEY,RAZOR_SECRET_KEY
 
@@ -37,37 +38,65 @@ clinto_subscription_map = {
     "Halfly": 2799,
     "Yearly": 5499,
 }
+
+
+@razor_router.post('/CreateMonthlyPlan')
+async def create_plans(data: CreateMonthlyPlan):
+    plan_obj = await MonthlyPlans.create(**data.dict())
+    return "plancreated"
+
+
+@razor_router.get('/getMonthlyPlan')
+async def get_monthly_plans(limit:Optional[int]=10,offset:Optional[int]=0):
+    monthly_plans = await monthly_pay.limited_data(offset=offset, limit=limit)
+    return monthly_plans
+
+
+@razor_router.delete('/deletePlans/{id}')
+async def delete_plans(id:int):
+    delete_plan = await MonthlyPlans.filter(id=id).delete()
+    return "plan deleted successfully"
+
+
+@razor_router.put('/editplans/{id}')
+async def edit_plans(id: int, data: CreateMonthlyPlan):
+    delete_plan = await MonthlyPlans.filter(id=id).update(**data.dict())
+    return "plan updated successfully"
+
 @razor_router.post('/addPayment')
-async def add_medicines(data: Create_RazorPayment = Body(...),clinic:int = Body(...),user:int = Body(...)):
-    pay = await RazorPayment.create(clinic_id=clinic, user_id=user, **data.dict(exclude_unset=True))
+async def add_medicines(data: CreateRazorPayment = Body(...)):
+    pay = await RazorPayment.create(clinic_id=data.clinic_id, user_id=data.user_id)
     letters = string.ascii_letters
     receipt = (''.join(random.choice(letters) for i in range(10)))
-    clinic_obj = await Clinic.get(id=clinic).prefetch_related('clinicpayments')
+    clinic_obj = await Clinic.get(id=data.clinic_id).prefetch_related('clinicpayments')
     # start_date = await
     start_date = datetime.date.today()
-    subscription_exists = await clinic_obj.clinicsubscriptions.filter(valid_till__gte=end_date, status='Success',active=True).order_by('-valid_till')
+    selected_plan = await MonthlyPlans.get(id=data.selected_plan)
+    number_of_days = selected_plan.number_of_months * 28
+    
+    subscription_exists = await clinic_obj.clinicpayments.filter(valid_till__gte=start_date, status='Success', active=True).order_by('-valid_till')
     if len(subscription_exists) > 0:
         latest_subscription = subscription_exists[0]
         start_date = latest_subscription.valid_till
-    if 'subscription' in data:
-        DATA = {
-            "amount": clinto_subscription_map[data.subscription],
-            "currency": 'INR',
-            "receipt": receipt,
-            "payment_capture": 1,
-        }
-        days = datetime.timedelta(days=28)
-        end_date = start_date + days
-        try:
-            c = client.order.create(data=DATA)
-            pay.order_id = c['id']
-            pay.amount = DATA['amount']
-            pay.subscription_date = start_date
-            pay.valid_till = end_date
-            await pay.save()
-            return JSONResponse({"order_id": pay.order_id, "success": "order was created succesfully", 'paymentpk': pay.id},status_code=200)
-        except:
-            return JSONResponse({"error": "same error occur while creating the order please try again"}, status_code=500)
+    print(selected_plan.amount)
+    DATA = {
+        "amount": selected_plan.amount * 100,
+        "currency": 'INR',
+        "receipt": receipt,
+        "payment_capture": 1,
+    }
+    days = datetime.timedelta(days=number_of_days)
+    end_date = start_date + days
+    try:
+        c = client.order.create(data=DATA)
+        pay.order_id = c['id']
+        pay.amount = DATA['amount']
+        pay.subscription_date = start_date
+        pay.valid_till = end_date
+        await pay.save()
+        return JSONResponse({"order_id": pay.order_id, "success": "order was created succesfully", 'paymentpk': pay.id},status_code=200)
+    except:
+        return JSONResponse({"error": "same error occur while creating the order please try again"}, status_code=500)
     return JSONResponse({"error": "kindly enter all the required info"}, status_code=500)
 
 
@@ -86,7 +115,7 @@ async def validate_payment(data: RazorData):
                 p = await RazorPayment.get(order_id=data.razorpay_order_id)
                 p.payment_id = data.razorpay_payment_id
                 p.status = 'Success'
-                p.save()
+                await p.save()
                 return JSONResponse({"success": "your plan is activated now"})
         except:
             return JSONResponse({"failed": "payment failed try again"}, status_code=500)
@@ -130,3 +159,5 @@ async def update_payments(id: int, data: Create_RazorPayment = Body(...)):
 async def filter_payments(data: Create_RazorPayment = Body(...)):
     await razor_pay.filter(**data.dict(exclude_unset=True))
     return {"success": "updated"}
+
+

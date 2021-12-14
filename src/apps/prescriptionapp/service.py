@@ -20,9 +20,7 @@ class DoctorViewSet(BaseService):
     model = ClinicReceponists
     get_schema = GET_Doctor
     
-class MedicineViewSet(BaseService):
-    model = Medicine
-    get_schema = GET_Doctor
+
     
 class PrescriptionViewSet(BaseService):
     model = Prescription
